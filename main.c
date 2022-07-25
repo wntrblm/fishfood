@@ -4,24 +4,8 @@
 #include "tmc2209.h"
 #include "tmc_config.h"
 #include "tmc_uart.h"
+#include "pins.h"
 #include <stdio.h>
-
-const uint8_t PIN_CAM_LED = 12;
-const uint8_t PIN_AUX_PIN = 13;
-const uint8_t PIN_UART_TX = 8;
-const uint8_t PIN_UART_RX = 9;
-const uint8_t PIN_M0_DIR = 24;
-const uint8_t PIN_M0_STEP = 25;
-const uint8_t PIN_M0_DIAG = 26;
-const uint8_t PIN_M0_EN = 27;
-const uint8_t PIN_M1_DIR = 20;
-const uint8_t PIN_M1_STEP = 21;
-const uint8_t PIN_M1_DIAG = 22;
-const uint8_t PIN_M1_EN = 23;
-const uint8_t PIN_M2_DIR = 16;
-const uint8_t PIN_M2_STEP = 17;
-const uint8_t PIN_M2_DIAG = 18;
-const uint8_t PIN_M2_EN = 19;
 
 static struct TMC2209 tmc_left;
 static struct TMC2209 tmc_right;
