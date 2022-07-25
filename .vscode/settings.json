@@ -1,0 +1,9 @@
+{
+    "files.associations": {
+        "*.h": "c",
+        "*.structy": "python",
+        "*.toml": "toml",
+        "limits": "c",
+        "type_traits": "c"
+    }
+}
