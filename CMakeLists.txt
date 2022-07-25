@@ -15,6 +15,7 @@ add_executable(picostep
   main.c
   tmc2209.c
   tmc_config.c
+  tmc_uart.c
 )
 
 target_include_directories(picostep PUBLIC ./)
