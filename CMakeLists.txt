@@ -16,6 +16,7 @@ add_executable(picostep
   drivers/tmc2209.c
   drivers/tmc2209_helper.c
   drivers/tmc_uart.c
+  littleg/littleg.c
 )
 
 target_include_directories(picostep PUBLIC ./)

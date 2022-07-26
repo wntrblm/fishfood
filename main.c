@@ -5,6 +5,7 @@
 #include "drivers/tmc2209.h"
 #include "drivers/tmc2209_helper.h"
 #include "drivers/tmc_uart.h"
+#include "littleg/littleg.h"
 #include <stdio.h>
 
 static struct TMC2209 tmc_left;
@@ -14,14 +15,21 @@ static struct TMC2209 tmc_z;
 static repeating_timer_t step_timer;
 static repeating_timer_t tmc_timer;
 static bool step_value = false;
-static volatile uint32_t steps = 0;
+static volatile int32_t steps = 0;
 static volatile bool dir = false;
 
 bool step_timer_callback(repeating_timer_t* rt) {
     if(steps == 0) return true;
+
+    gpio_put(PIN_M0_DIR, steps > 0 ? 1 : 0);
     gpio_put(PIN_M0_STEP, step_value);
     step_value = !step_value;
-    steps--;
+
+    if(steps > 0) {
+        steps--;
+    } else {
+        steps++;
+    }
     return true;
 }
 
@@ -49,7 +57,7 @@ int main() {
     gpio_put(PIN_M0_EN, 1);
 
     // Wait for USB connection.
-    // while (!stdio_usb_connected()) {}
+    while (!stdio_usb_connected()) {}
 
     printf("Starting UART...\n");
     uart_init(uart1, 115200);
@@ -69,10 +77,29 @@ int main() {
     printf("Starting steppers...\n");
     add_repeating_timer_us(-150, step_timer_callback, NULL, &step_timer);
 
+    struct lilg_Command command = {};
+
     while (1) {
-        enum TMC2209_read_result result;
-        printf(".");
-        sleep_ms(200);
-        steps = 50 * 32;
+        int in_c = getchar();
+        if(in_c == EOF) {
+            break;
+        }
+
+        // Echo
+        putchar(in_c);
+        if(in_c == '\r') {
+            putchar('\n');
+        }
+
+        bool valid_command = lilg_parse(&command, (char)(in_c));
+
+        if(valid_command) {
+            if(command.G.set && command.G.real == 0) {
+                steps = command.X.real;
+            }
+            printf("ok\n");
+        }
     }
+
+    printf("Main loop exited due to end of file on stdin\n");
 }
