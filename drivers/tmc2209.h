@@ -27,11 +27,9 @@ enum TMC2209_read_result {
 
 void TMC2209_init(
     struct TMC2209* tmc, void* uart, uint8_t uart_address, TMC2209_uart_send_receive_func uart_send_receive);
-enum TMC2209_read_result TMC2209_read(struct TMC2209* tmc, uint8_t register_addr, uint32_t* out);
-void TMC2209_write(struct TMC2209* tmc, uint8_t register_addr, uint32_t value);
-uint8_t TMC2209_CRC8(uint8_t* data, size_t len);
 
-void TMC2209_print_GCONF(uint32_t gconf);
-void TMC2209_print_CHOPCONF(uint32_t chopconf);
-void TMC2209_print_PWMCONF(uint32_t pwmconf);
-void TMC2209_print_DRVSTATUS(uint32_t drvstatus);
+enum TMC2209_read_result TMC2209_read(struct TMC2209* tmc, uint8_t register_addr, uint32_t* out);
+
+void TMC2209_write(struct TMC2209* tmc, uint8_t register_addr, uint32_t value);
+
+uint8_t TMC2209_CRC8(uint8_t* data, size_t len);

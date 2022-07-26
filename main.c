@@ -74,15 +74,5 @@ int main() {
         printf(".");
         sleep_ms(200);
         steps = 50 * 32;
-
-        // printf("- Checking tmc_left status...\n");
-
-        // uint32_t drvstatus;
-        // result = TMC2209_read(&tmc_left, TMC2209_DRVSTATUS, &drvstatus);
-        // TMC2209_print_DRVSTATUS(drvstatus);
-
-        // uint32_t sg_result;
-        // result = TMC2209_read(&tmc_left, TMC2209_SG_RESULT, &sg_result);
-        // printf("SG_RESULT: %u / 510\n", sg_result);
     }
 }
