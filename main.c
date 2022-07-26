@@ -1,10 +1,10 @@
 #include "hardware/gpio.h"
 #include "hardware/uart.h"
 #include "pico/stdlib.h"
-#include "pins.h"
-#include "tmc2209.h"
-#include "tmc_config.h"
-#include "tmc_uart.h"
+#include "config/pins.h"
+#include "drivers/tmc2209.h"
+#include "drivers/tmc2209_helper.h"
+#include "drivers/tmc_uart.h"
 #include <stdio.h>
 
 static struct TMC2209 tmc_left;
@@ -58,7 +58,7 @@ int main() {
 
     printf("Starting TMC drivers...\n");
     TMC2209_init(&tmc_left, uart1, 0, tmc_uart_read_write);
-    if (!tmc_config(&tmc_left, PIN_M0_EN)) {
+    if (!TMC2209_write_config(&tmc_left, PIN_M0_EN)) {
         printf("Error configuring tmc_left!");
         return 0;
     }

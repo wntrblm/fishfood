@@ -13,9 +13,9 @@ add_compile_definitions(PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64)
 
 add_executable(picostep
   main.c
-  tmc2209.c
-  tmc_config.c
-  tmc_uart.c
+  drivers/tmc2209.c
+  drivers/tmc2209_helper.c
+  drivers/tmc_uart.c
 )
 
 target_include_directories(picostep PUBLIC ./)

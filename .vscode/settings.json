@@ -5,5 +5,9 @@
         "*.toml": "toml",
         "limits": "c",
         "type_traits": "c"
-    }
+    },
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+    "cmake.configureOnOpen": true,
+    "C_Cpp.default.cppStandard": "gnu++23",
+    "C_Cpp.default.cStandard": "gnu17"
 }
