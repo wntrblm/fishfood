@@ -1,5 +1,6 @@
 #include "tmc_uart.h"
 #include "hardware/uart.h"
+#include <string.h>
 #include <stdio.h>
 
 static inline void print_hex_array(uint8_t* data, size_t len) {
@@ -10,37 +11,53 @@ static inline void print_hex_array(uint8_t* data, size_t len) {
 
 void tmc_uart_read_write(
     struct TMC2209* tmc, uint8_t* send_buf, size_t send_len, uint8_t* receive_buf, size_t receive_len) {
-    printf("> TMC UART send: %i, receive: %i\n", send_len, receive_len);
-    printf("Write: ");
-    print_hex_array(send_buf, send_len);
 
     // clear any existing rx bytes
-    while (uart_is_readable(uart1)) { uart_getc(uart1); }
+    while (uart_is_readable_within_us(uart1, 100)) { uart_getc(uart1); }
 
     uart_write_blocking(uart1, send_buf, send_len);
 
-    // clear echoed rx bytes
-    while (uart_is_readable_within_us(uart1, 100)) { uart_getc(uart1); }
-
+    /*
+        Here's where things get tricky. Since TX and RX are shared the bytes
+        we just wrote are now echoed in the RX buffer. So we gotta read and
+        discard them until we get to the reply. This does so by "looking ahead"
+        to see if the reply sync and address bytes are received.
+    */
     if (receive_len > 0) {
+        uint8_t rx_bytes[64] = {};
+        size_t rx_num = 0;
+        bool seen_sync = false;
         uint8_t byte = 0;
-        size_t n = 1;
 
         // Read until the sync byte is seen.
         while (true) {
             byte = uart_getc(uart1);
-            if (byte == 0x05) {
-                receive_buf[0] = byte;
-                break;
+            rx_bytes[rx_num] = byte;
+            rx_num++;
+
+            if (!seen_sync) {
+                if(byte == 0x05) {
+                    receive_buf[0] = byte;
+                    seen_sync = true;
+                    continue;
+                }
+            } else {
+                // The address byte should be immediately after the
+                // sync byte. If it's not, then start over.
+                if (byte == 0xFF) {
+                    receive_buf[1] = byte;
+                    break;
+                } else if (byte == 0x05) {
+                    continue;
+                } else {
+                    seen_sync = false;
+                }
             }
         }
 
-        while (n < receive_len) {
+        // Now read the rest of the reply.
+        for(size_t n = 2; n < receive_len; n++) {
             receive_buf[n] = uart_getc(uart1);
-            n++;
         }
-
-        printf("Read %u/%u bytes: ", n, receive_len);
-        print_hex_array(receive_buf, n);
     }
 }

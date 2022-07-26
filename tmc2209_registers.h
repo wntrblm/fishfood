@@ -321,7 +321,11 @@
 /*  SGTHRS (W)
     Detection threshold for stall. The StallGuard value SG_RESULT
     becomes compared to the double of this threshold.
-    A stall is signaled with SG_RESULT ≤ SGTHRS*2 */
+    A stall is signaled with SG_RESULT ≤ SGTHRS*2
+
+    A higher value gives a higher sensitivity. A higher value makes
+    StallGuard4 more sensitive and requires less torque to indicate
+    a stall. */
 #define TMC2209_SGTHRS                          0x40u
 #define TMC2209_SGTHRS_MASK                     0xFFu
 #define TMC2209_SGTHRS_SHIFT                    0u

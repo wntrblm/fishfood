@@ -22,8 +22,8 @@ bool tmc_config(struct TMC2209* tmc, uint32_t enable_pin) {
     TMC_SET_FIELD(gconf, TMC2209_GCONF_MSTEP_REG_SELECT, 1);
     // Use stealthChop
     TMC_SET_FIELD(gconf, TMC2209_GCONF_EN_SPREADCYCLE, 0);
-    // Use internal sense resistors (Candela has them but v0 used the wrong value).
-    TMC_SET_FIELD(gconf, TMC2209_GCONF_INTERNAL_RSENSE, 1);
+    // Use external RDSon sense resistors
+    TMC_SET_FIELD(gconf, TMC2209_GCONF_INTERNAL_RSENSE, 0);
 
     TMC2209_write(tmc, TMC2209_GCONF, gconf);
 
@@ -65,10 +65,13 @@ bool tmc_config(struct TMC2209* tmc, uint32_t enable_pin) {
 
     printf("- Setting IHOLD_IRUN... \n");
     uint32_t ihold_irun = 0;
-    TMC_SET_FIELD(ihold_irun, TMC2209_IHOLD_IRUN_IRUN, 8);
-    TMC_SET_FIELD(ihold_irun, TMC2209_IHOLD_IRUN_IHOLD, 6);
+    TMC_SET_FIELD(ihold_irun, TMC2209_IHOLD_IRUN_IRUN, 30);
+    TMC_SET_FIELD(ihold_irun, TMC2209_IHOLD_IRUN_IHOLD, 20);
     TMC_SET_FIELD(ihold_irun, TMC2209_IHOLD_IRUN_IHOLDDELAY, 10);
     TMC2209_write(tmc, TMC2209_IHOLD_IRUN, ihold_irun);
+
+    printf("- Setting up stallguard... \n");
+    TMC2209_write(tmc, TMC2209_SGTHRS, 10);
 
     printf("- Enabling stepper... \n");
     gpio_put(enable_pin, 0);
