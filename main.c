@@ -15,6 +15,7 @@ static repeating_timer_t step_timer;
 static repeating_timer_t tmc_timer;
 static bool step_value = false;
 static volatile uint32_t steps = 0;
+static volatile bool dir = false;
 
 bool step_timer_callback(repeating_timer_t* rt) {
     if(steps == 0) return true;
@@ -26,6 +27,8 @@ bool step_timer_callback(repeating_timer_t* rt) {
 
 void diag_rise_callback(uint gpio, uint32_t events) {
     steps = 0;
+    dir = !dir;
+    gpio_put(PIN_M0_DIR, dir);
     printf("!!! External interrupt GPIO %d: %u\n", gpio, events);
 }
 
@@ -64,12 +67,12 @@ int main() {
     gpio_set_irq_enabled_with_callback(PIN_M0_DIAG, GPIO_IRQ_EDGE_RISE, true, &diag_rise_callback);
 
     printf("Starting steppers...\n");
-    add_repeating_timer_us(-100, step_timer_callback, NULL, &step_timer);
+    add_repeating_timer_us(-150, step_timer_callback, NULL, &step_timer);
 
     while (1) {
         enum TMC2209_read_result result;
         printf(".");
-        sleep_ms(1000);
+        sleep_ms(200);
         steps = 50 * 32;
 
         // printf("- Checking tmc_left status...\n");

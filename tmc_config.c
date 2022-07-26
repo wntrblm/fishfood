@@ -65,13 +65,13 @@ bool tmc_config(struct TMC2209* tmc, uint32_t enable_pin) {
 
     printf("- Setting IHOLD_IRUN... \n");
     uint32_t ihold_irun = 0;
-    TMC_SET_FIELD(ihold_irun, TMC2209_IHOLD_IRUN_IRUN, 30);
-    TMC_SET_FIELD(ihold_irun, TMC2209_IHOLD_IRUN_IHOLD, 20);
+    TMC_SET_FIELD(ihold_irun, TMC2209_IHOLD_IRUN_IRUN, 31);
+    TMC_SET_FIELD(ihold_irun, TMC2209_IHOLD_IRUN_IHOLD, 25);
     TMC_SET_FIELD(ihold_irun, TMC2209_IHOLD_IRUN_IHOLDDELAY, 10);
     TMC2209_write(tmc, TMC2209_IHOLD_IRUN, ihold_irun);
 
     printf("- Setting up stallguard... \n");
-    TMC2209_write(tmc, TMC2209_SGTHRS, 10);
+    TMC2209_write(tmc, TMC2209_SGTHRS, 50);
 
     printf("- Enabling stepper... \n");
     gpio_put(enable_pin, 0);
