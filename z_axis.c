@@ -47,7 +47,7 @@ bool ZMotor_setup(struct ZMotor* m) {
     gpio_put(m->pin_enn, true);
 
     gpio_init(m->pin_dir);
-    gpio_set_dir(m->pin_enn, GPIO_OUT);
+    gpio_set_dir(m->pin_dir, GPIO_OUT);
     gpio_put(m->pin_dir, false);
 
     gpio_init(m->pin_step);
@@ -66,7 +66,7 @@ bool ZMotor_setup(struct ZMotor* m) {
     current_motor = m;
 
     printf("Configuring DIAG interrupt...\n");
-    gpio_add_raw_irq_handler(m->pin_diag, &diag_pin_irq);
+    gpio_set_irq_enabled_with_callback(m->pin_diag, GPIO_IRQ_EDGE_RISE, true, &diag_pin_irq);
 
     printf("Starting steppers...\n");
     add_repeating_timer_us(-150, step_timer_callback, NULL, &(m->_step_timer));
@@ -79,7 +79,7 @@ void ZMotor_home(volatile struct ZMotor* m) {
     printf("Homing Z... ");
     while (m->_homing_state == 1) {}
     printf("Z min set");
-    while (m->_homing_state == 2) {}
+    while (m->_homing_state != 0) {}
     printf(", Z max set %0.2f mm, %i steps\n", m->actual_mm, m->max_steps);
 }
 
@@ -94,13 +94,9 @@ void ZMotor_move_to(volatile struct ZMotor* m, float dest_mm) {
     Private methods
 */
 
-void diag_pin_irq() {
-    if (!(gpio_get_irq_event_mask(current_motor->pin_diag) & GPIO_IRQ_EDGE_RISE)) {
-        return;
-    }
-    gpio_acknowledge_irq(current_motor->pin_diag, GPIO_IRQ_EDGE_RISE);
-
+void diag_pin_irq(uint32_t pin, uint32_t events) {
     uint32_t irq_status = save_and_disable_interrupts();
+
     if (current_motor->_homing_state == 1) {
         current_motor->actual_mm = 0.0f;
         current_motor->actual_steps = 0;
@@ -114,6 +110,7 @@ void diag_pin_irq() {
         current_motor->_delta_steps = 0;
         current_motor->_crash_flag = true;
     }
+
     restore_interrupts(irq_status);
 }
 
