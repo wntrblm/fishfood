@@ -1,11 +1,14 @@
-#include "hardware/gpio.h"
-#include "hardware/uart.h"
-#include "pico/stdlib.h"
+#include "config/general.h"
 #include "config/pins.h"
 #include "drivers/tmc2209.h"
 #include "drivers/tmc2209_helper.h"
 #include "drivers/tmc_uart.h"
+#include "hardware/gpio.h"
+#include "hardware/uart.h"
+#include "hardware/sync.h"
 #include "littleg/littleg.h"
+#include "pico/stdlib.h"
+#include <math.h>
 #include <stdio.h>
 
 static struct TMC2209 tmc_left;
@@ -14,30 +17,73 @@ static struct TMC2209 tmc_z;
 
 static repeating_timer_t step_timer;
 static repeating_timer_t tmc_timer;
-static bool step_value = false;
-static volatile int32_t steps = 0;
-static volatile bool dir = false;
+
+struct MotorState {
+    volatile int32_t actual_steps;
+    volatile int32_t delta_steps;
+    volatile float actual_mm;
+    volatile int32_t max_steps;
+    volatile int32_t homing_state;
+    volatile bool crash_flag;
+    volatile bool _step_edge;
+};
+
+static volatile struct MotorState z_state;
+
+inline static void set_z_dir(int32_t delta) { gpio_put(PIN_M0_DIR, delta >= 0 ? 1 : 0); }
 
 bool step_timer_callback(repeating_timer_t* rt) {
-    if(steps == 0) return true;
+    uint32_t irq_status = save_and_disable_interrupts();
 
-    gpio_put(PIN_M0_DIR, steps > 0 ? 1 : 0);
-    gpio_put(PIN_M0_STEP, step_value);
-    step_value = !step_value;
-
-    if(steps > 0) {
-        steps--;
-    } else {
-        steps++;
+    if (z_state.homing_state == 1) {
+        set_z_dir(Z_HOMING_DIR);
+        gpio_put(PIN_M0_STEP, z_state._step_edge);
+        z_state._step_edge = !z_state._step_edge;
+        restore_interrupts(irq_status);
+        return true;
     }
+
+    if (z_state.delta_steps == 0) {
+        restore_interrupts(irq_status);
+        return true;
+    }
+
+    set_z_dir(z_state.delta_steps);
+    gpio_put(PIN_M0_STEP, z_state._step_edge);
+    z_state._step_edge = !z_state._step_edge;
+
+    if (z_state._step_edge == false) {
+        if (z_state.delta_steps > 0) {
+            z_state.delta_steps--;
+            z_state.actual_steps++;
+            z_state.actual_mm += Z_MM_PER_STEP;
+        } else {
+            z_state.delta_steps++;
+            z_state.actual_steps--;
+            z_state.actual_mm -= Z_MM_PER_STEP;
+        }
+    }
+
+    restore_interrupts(irq_status);
     return true;
 }
 
 void diag_rise_callback(uint gpio, uint32_t events) {
-    steps = 0;
-    dir = !dir;
-    gpio_put(PIN_M0_DIR, dir);
-    printf("!!! External interrupt GPIO %d: %u\n", gpio, events);
+    uint32_t irq_status = save_and_disable_interrupts();
+    if(z_state.homing_state == 1) {
+        z_state.actual_mm = 0.0f;
+        z_state.actual_steps = 0;
+        z_state.delta_steps = Z_INITIAL_MAX_STEPS;
+        z_state.homing_state = 2;
+    } else if(z_state.homing_state == 2) {
+        z_state.max_steps = z_state.actual_steps;
+        z_state.homing_state = 0;
+        z_state.delta_steps = -(z_state.actual_steps / 2);
+    } else {
+        z_state.delta_steps = 0;
+        z_state.crash_flag = true;
+    }
+    restore_interrupts(irq_status);
 }
 
 int main() {
@@ -75,27 +121,43 @@ int main() {
     gpio_set_irq_enabled_with_callback(PIN_M0_DIAG, GPIO_IRQ_EDGE_RISE, true, &diag_rise_callback);
 
     printf("Starting steppers...\n");
-    add_repeating_timer_us(-150, step_timer_callback, NULL, &step_timer);
+    add_repeating_timer_us(-100, step_timer_callback, NULL, &step_timer);
 
     struct lilg_Command command = {};
 
     while (1) {
         int in_c = getchar();
-        if(in_c == EOF) {
+        if (in_c == EOF) {
             break;
         }
 
         // Echo
+        // TODO: Remove this
         putchar(in_c);
-        if(in_c == '\r') {
+        if (in_c == '\r') {
             putchar('\n');
         }
 
         bool valid_command = lilg_parse(&command, (char)(in_c));
 
-        if(valid_command) {
-            if(command.G.set && command.G.real == 0) {
-                steps = command.X.real;
+        if (valid_command) {
+            if (command.G.set && command.G.real == 0) {
+                float dest_mm = (float)(command.Z.real);
+                float delta_mm = dest_mm - z_state.actual_mm;
+                float delta_steps = delta_mm * (float)(Z_STEPS_PER_MM);
+                z_state.delta_steps = (int32_t)(roundf(delta_steps));
+                printf("> Moving Z %0.2f mm (%i steps)\n", delta_mm, z_state.delta_steps);
+            }
+            if (command.G.set && command.G.real == 28) {
+                z_state.homing_state = 1;
+                while(z_state.homing_state == 1) {}
+                printf("Z min set\n");
+                while(z_state.homing_state == 2) {}
+                printf("Z max set %0.2f mm, %i steps\n", z_state.actual_mm, z_state.max_steps);
+            }
+            if (command.M.set) {
+                printf("> Z: %0.2f mm, (%i steps), crashed? %u\n", z_state.actual_mm, z_state.actual_steps, z_state.crash_flag);
+                z_state.crash_flag = false;
             }
             printf("ok\n");
         }
