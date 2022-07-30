@@ -1,16 +1,16 @@
 #include "config/general.h"
 #include "config/pins.h"
+#include "drivers/neopixel.h"
 #include "drivers/tmc2209.h"
 #include "drivers/tmc2209_helper.h"
-#include "drivers/neopixel.h"
 #include "drivers/tmc_uart.h"
 #include "hardware/gpio.h"
-#include "hardware/uart.h"
 #include "hardware/sync.h"
+#include "hardware/uart.h"
 #include "littleg/littleg.h"
 #include "pico/stdlib.h"
-#include "z_axis.h"
 #include "rotational_axis.h"
+#include "z_axis.h"
 #include <math.h>
 #include <stdio.h>
 
@@ -23,6 +23,7 @@ static struct TMC2209 tmc_z;
 
 static struct ZMotor z_motor;
 static struct RotationalAxis l_motor;
+static struct RotationalAxis r_motor;
 
 int main() {
     stdio_init_all();
@@ -33,7 +34,10 @@ int main() {
 
     TMC2209_init(&tmc_left, uart1, 1, tmc_uart_read_write);
     TMC2209_init(&tmc_z, uart1, 0, tmc_uart_read_write);
+    TMC2209_init(&tmc_right, uart1, 2, tmc_uart_read_write);
+
     RotationalAxis_init(&l_motor, &tmc_left, PIN_M1_EN, PIN_M1_DIR, PIN_M1_STEP);
+    RotationalAxis_init(&r_motor, &tmc_left, PIN_M2_EN, PIN_M2_DIR, PIN_M2_STEP);
     ZMotor_init(&z_motor, &tmc_z, PIN_M0_EN, PIN_M0_DIR, PIN_M0_STEP, PIN_M0_DIAG);
 
     // Wait for USB connection.
@@ -49,6 +53,7 @@ int main() {
     printf("Starting motors...\n");
     ZMotor_setup(&z_motor);
     RotationalAxis_setup(&l_motor);
+    RotationalAxis_setup(&r_motor);
 
     printf("Ready!\n");
     Neopixel_set_all(pixels, NUM_PIXELS, 0, 0, 255);
@@ -72,15 +77,15 @@ int main() {
 
         if (valid_command) {
             if (command.G.set && command.G.real == 0) {
-                if(command.fields['F' - 'A'].set) {
+                if (command.fields['F' - 'A'].set) {
                     ZMotor_set_step_interval(&z_motor, command.fields['F' - 'A'].real);
                     printf("> set stepping time to %u us\n", command.fields['F' - 'A'].real);
                 }
-                if(command.Z.set) {
+                if (command.Z.set) {
                     float dest_mm = lilg_Decimal_to_float(command.Z);
                     ZMotor_move_to(&z_motor, dest_mm);
                 }
-                if(command.fields[0].set) {
+                if (command.fields[0].set) {
                     float dest_deg = lilg_Decimal_to_float(command.fields[0]);
                     RotationalAxis_move_to(&l_motor, dest_deg);
                 }
@@ -89,17 +94,31 @@ int main() {
                 ZMotor_home(&z_motor);
             }
             if (command.M.set) {
-                if(command.M.real == 114) {
-                    printf("> Z: %0.2f mm, (%i steps), crashed? %u\n", z_motor.actual_mm, z_motor.actual_steps, z_motor._crash_flag);
-                    printf("> A: %0.2f deg, (%i steps)\n", l_motor.actual_deg, l_motor.actual_steps);
-                }
-                else if(command.M.real == 150) {
+
+                if (command.M.real == 114) {
+                    // M114 get current position
+                    // https://marlinfw.org/docs/gcode/M114.html
+                    printf(
+                        "Z:%0.2f A:%0.2f B:%0.2f Count Z:%i A:%i B:%i\n",
+                        z_motor.actual_mm,
+                        l_motor.actual_deg,
+                        r_motor.actual_deg,
+                        z_motor.actual_steps,
+                        l_motor.actual_steps,
+                        r_motor.actual_steps);
+
+                } else if (command.M.real == 150) {
                     // M150 set RGB
                     // https://marlinfw.org/docs/gcode/M150.html
-                    Neopixel_set_all(pixels, NUM_PIXELS, command.fields['R' - 'A'].real, command.fields['G' - 'A'].real, command.fields['B' - 'A'].real);
+                    Neopixel_set_all(
+                        pixels,
+                        NUM_PIXELS,
+                        command.fields['R' - 'A'].real,
+                        command.fields['G' - 'A'].real,
+                        command.fields['B' - 'A'].real);
                     Neopixel_write(pixels, NUM_PIXELS);
-                }
-                else if(command.M.real == 914) {
+
+                } else if (command.M.real == 914) {
                     // M914 Set bump sensitivity
                     // https://marlinfw.org/docs/gcode/M914.html
                     TMC2209_write(z_motor.tmc, TMC2209_SGTHRS, command.Z.real);
