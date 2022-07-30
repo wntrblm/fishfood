@@ -18,8 +18,8 @@ volatile struct ZMotor* current_motor;
 /*
     Forward declarations
 */
-bool step_timer_callback(repeating_timer_t* rt);
-void diag_pin_irq();
+static bool step_timer_callback(repeating_timer_t* rt);
+static void diag_pin_irq();
 
 /*
     Public methods
@@ -68,7 +68,7 @@ bool ZMotor_setup(struct ZMotor* m) {
     printf("Configuring DIAG interrupt...\n");
     gpio_set_irq_enabled_with_callback(m->pin_diag, GPIO_IRQ_EDGE_RISE, true, &diag_pin_irq);
 
-    printf("Starting steppers...\n");
+    printf("Starting stepper timer...\n");
     add_repeating_timer_us(-150, step_timer_callback, NULL, &(m->_step_timer));
 
     return true;
@@ -94,7 +94,7 @@ void ZMotor_move_to(volatile struct ZMotor* m, float dest_mm) {
     Private methods
 */
 
-void diag_pin_irq(uint32_t pin, uint32_t events) {
+static void diag_pin_irq(uint32_t pin, uint32_t events) {
     uint32_t irq_status = save_and_disable_interrupts();
 
     if (current_motor->_homing_state == 1) {
@@ -114,7 +114,7 @@ void diag_pin_irq(uint32_t pin, uint32_t events) {
     restore_interrupts(irq_status);
 }
 
-bool step_timer_callback(repeating_timer_t* rt) {
+static bool step_timer_callback(repeating_timer_t* rt) {
     uint32_t irq_status = save_and_disable_interrupts();
 
     if (current_motor->_homing_state == 1) {

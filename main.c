@@ -9,6 +9,7 @@
 #include "littleg/littleg.h"
 #include "pico/stdlib.h"
 #include "z_axis.h"
+#include "rotational_axis.h"
 #include <math.h>
 #include <stdio.h>
 
@@ -17,12 +18,16 @@ static struct TMC2209 tmc_right;
 static struct TMC2209 tmc_z;
 
 static struct ZMotor z_motor;
+static struct RotationalAxis l_motor;
 
 int main() {
     stdio_init_all();
 
     TMC2209_init(&tmc_left, uart1, 0, tmc_uart_read_write);
+    TMC2209_init(&tmc_z, uart1, 1, tmc_uart_read_write);
+
     ZMotor_init(&z_motor, &tmc_left, PIN_M0_EN, PIN_M0_DIR, PIN_M0_STEP, PIN_M0_DIAG);
+    RotationalAxis_init(&l_motor, &tmc_z, PIN_M1_EN, PIN_M1_DIR, PIN_M1_STEP);
 
     // Wait for USB connection.
     while (!stdio_usb_connected()) {}
@@ -35,6 +40,7 @@ int main() {
     printf("Starting motors...\n");
 
     ZMotor_setup(&z_motor);
+    RotationalAxis_setup(&l_motor);
 
     printf("Ready!\n");
 
@@ -56,14 +62,21 @@ int main() {
 
         if (valid_command) {
             if (command.G.set && command.G.real == 0) {
-                float dest_mm = (float)(command.Z.real);
-                ZMotor_move_to(&z_motor, dest_mm);
+                if(command.Z.set) {
+                    float dest_mm = (float)(command.Z.real);
+                    ZMotor_move_to(&z_motor, dest_mm);
+                }
+                if(command.fields[0].set) {
+                    float dest_deg = (float)(command.fields[0].real);
+                    RotationalAxis_move_to(&l_motor, dest_deg);
+                }
             }
             if (command.G.set && command.G.real == 28) {
                 ZMotor_home(&z_motor);
             }
             if (command.M.set) {
                 printf("> Z: %0.2f mm, (%i steps), crashed? %u\n", z_motor.actual_mm, z_motor.actual_steps, z_motor._crash_flag);
+                printf("> A: %0.2f deg, (%i steps)\n", l_motor.actual_deg, l_motor.actual_steps);
             }
             printf("ok\n");
         }
