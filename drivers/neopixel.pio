@@ -1,0 +1,39 @@
+.program neopixel
+.side_set 1
+
+.define public t1 2
+.define public t2 5
+.define public t3 3
+
+.wrap_target
+bitloop:
+    out x, 1       side 0 [t3 - 1]
+    jmp !x do_low  side 1 [t1 - 1]
+do_high:
+    jmp  bitloop   side 1 [t2 - 1] ; Long pulse
+do_low:
+    nop            side 0 [t2 - 1] ; Short pulse
+.wrap
+
+% c-sdk {
+
+#include "hardware/clocks.h"
+
+static inline void neopixel_program_init(PIO pio, uint sm, uint offset, uint pin, float freq) {
+    pio_gpio_init(pio, pin);
+    pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
+
+    pio_sm_config c = neopixel_program_get_default_config(offset);
+    sm_config_set_sideset_pins(&c, pin);
+    sm_config_set_out_shift(&c, false, true, 8);
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
+
+    int cycles_per_bit = neopixel_t1 + neopixel_t2 + neopixel_t3;
+    float div = clock_get_hz(clk_sys) / (freq * cycles_per_bit);
+    sm_config_set_clkdiv(&c, div);
+
+    pio_sm_init(pio, sm, offset, &c);
+    pio_sm_set_enabled(pio, sm, true);
+}
+
+%}

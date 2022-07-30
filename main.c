@@ -2,6 +2,7 @@
 #include "config/pins.h"
 #include "drivers/tmc2209.h"
 #include "drivers/tmc2209_helper.h"
+#include "drivers/neopixel.h"
 #include "drivers/tmc_uart.h"
 #include "hardware/gpio.h"
 #include "hardware/uart.h"
@@ -13,6 +14,9 @@
 #include <math.h>
 #include <stdio.h>
 
+#define NUM_PIXELS 8
+static uint8_t pixels[3 * NUM_PIXELS];
+
 static struct TMC2209 tmc_left;
 static struct TMC2209 tmc_right;
 static struct TMC2209 tmc_z;
@@ -23,13 +27,18 @@ static struct RotationalAxis l_motor;
 int main() {
     stdio_init_all();
 
+    Neopixel_init(PIN_CAM_LED);
+    Neopixel_set_all(pixels, NUM_PIXELS, 255, 0, 0);
+    Neopixel_write(pixels, NUM_PIXELS);
+
     TMC2209_init(&tmc_left, uart1, 1, tmc_uart_read_write);
     TMC2209_init(&tmc_z, uart1, 0, tmc_uart_read_write);
-
     RotationalAxis_init(&l_motor, &tmc_left, PIN_M1_EN, PIN_M1_DIR, PIN_M1_STEP);
     ZMotor_init(&z_motor, &tmc_z, PIN_M0_EN, PIN_M0_DIR, PIN_M0_STEP, PIN_M0_DIAG);
 
     // Wait for USB connection.
+    Neopixel_set_all(pixels, NUM_PIXELS, 0, 255, 0);
+    Neopixel_write(pixels, NUM_PIXELS);
     while (!stdio_usb_connected()) {}
 
     printf("Starting UART...\n");
@@ -38,11 +47,12 @@ int main() {
     gpio_set_function(PIN_UART_RX, GPIO_FUNC_UART);
 
     printf("Starting motors...\n");
-
     ZMotor_setup(&z_motor);
     RotationalAxis_setup(&l_motor);
 
     printf("Ready!\n");
+    Neopixel_set_all(pixels, NUM_PIXELS, 0, 0, 255);
+    Neopixel_write(pixels, NUM_PIXELS);
 
     struct lilg_Command command = {};
 
@@ -82,6 +92,12 @@ int main() {
                 if(command.M.real == 114) {
                     printf("> Z: %0.2f mm, (%i steps), crashed? %u\n", z_motor.actual_mm, z_motor.actual_steps, z_motor._crash_flag);
                     printf("> A: %0.2f deg, (%i steps)\n", l_motor.actual_deg, l_motor.actual_steps);
+                }
+                else if(command.M.real == 150) {
+                    // M150 set RGB
+                    // https://marlinfw.org/docs/gcode/M150.html
+                    Neopixel_set_all(pixels, NUM_PIXELS, command.fields['R' - 'A'].real, command.fields['G' - 'A'].real, command.fields['B' - 'A'].real);
+                    Neopixel_write(pixels, NUM_PIXELS);
                 }
                 else if(command.M.real == 914) {
                     // M914 Set bump sensitivity

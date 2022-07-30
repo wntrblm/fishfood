@@ -18,12 +18,15 @@ add_executable(picostep
   drivers/tmc2209.c
   drivers/tmc2209_helper.c
   drivers/tmc_uart.c
+  drivers/neopixel.c
   littleg/littleg.c
 )
 
-target_include_directories(picostep PUBLIC ./)
+pico_generate_pio_header(picostep ${CMAKE_CURRENT_LIST_DIR}/drivers/neopixel.pio)
+
+target_include_directories(picostep PUBLIC ${CMAKE_CURRENT_LIST_DIR})
 
 pico_enable_stdio_usb(picostep 1)
 pico_add_extra_outputs(picostep)
 
-target_link_libraries(picostep pico_stdlib)
+target_link_libraries(picostep pico_stdlib hardware_pio hardware_dma hardware_irq)
