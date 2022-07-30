@@ -85,8 +85,8 @@ int main() {
                     float dest_mm = lilg_Decimal_to_float(command.Z);
                     ZMotor_move_to(&z_motor, dest_mm);
                 }
-                if (command.fields[0].set) {
-                    float dest_deg = lilg_Decimal_to_float(command.fields[0]);
+                if (LILG_FIELD(command, A).set) {
+                    float dest_deg = lilg_Decimal_to_float(LILG_FIELD(command, A));
                     RotationalAxis_move_to(&l_motor, dest_deg);
                 }
             }
@@ -113,9 +113,9 @@ int main() {
                     Neopixel_set_all(
                         pixels,
                         NUM_PIXELS,
-                        command.fields['R' - 'A'].real,
-                        command.fields['G' - 'A'].real,
-                        command.fields['B' - 'A'].real);
+                        LILG_FIELD(command, R).real,
+                        LILG_FIELD(command, G).real,
+                        LILG_FIELD(command, B).real);
                     Neopixel_write(pixels, NUM_PIXELS);
 
                 } else if (command.M.real == 914) {
