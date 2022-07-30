@@ -23,11 +23,11 @@ static struct RotationalAxis l_motor;
 int main() {
     stdio_init_all();
 
-    TMC2209_init(&tmc_left, uart1, 0, tmc_uart_read_write);
-    TMC2209_init(&tmc_z, uart1, 1, tmc_uart_read_write);
+    TMC2209_init(&tmc_left, uart1, 1, tmc_uart_read_write);
+    TMC2209_init(&tmc_z, uart1, 0, tmc_uart_read_write);
 
-    RotationalAxis_init(&l_motor, &tmc_left, PIN_M0_EN, PIN_M0_DIR, PIN_M0_STEP);
-    ZMotor_init(&z_motor, &tmc_z, PIN_M1_EN, PIN_M1_DIR, PIN_M1_STEP, PIN_M1_DIAG);
+    RotationalAxis_init(&l_motor, &tmc_left, PIN_M1_EN, PIN_M1_DIR, PIN_M1_STEP);
+    ZMotor_init(&z_motor, &tmc_z, PIN_M0_EN, PIN_M0_DIR, PIN_M0_STEP, PIN_M0_DIAG);
 
     // Wait for USB connection.
     while (!stdio_usb_connected()) {}
@@ -62,6 +62,10 @@ int main() {
 
         if (valid_command) {
             if (command.G.set && command.G.real == 0) {
+                if(command.fields['F' - 'A'].set) {
+                    ZMotor_set_step_interval(&z_motor, command.fields['F' - 'A'].real);
+                    printf("> set stepping time to %u us\n", command.fields['F' - 'A'].real);
+                }
                 if(command.Z.set) {
                     float dest_mm = (float)(command.Z.real);
                     ZMotor_move_to(&z_motor, dest_mm);
@@ -75,8 +79,16 @@ int main() {
                 ZMotor_home(&z_motor);
             }
             if (command.M.set) {
-                printf("> Z: %0.2f mm, (%i steps), crashed? %u\n", z_motor.actual_mm, z_motor.actual_steps, z_motor._crash_flag);
-                printf("> A: %0.2f deg, (%i steps)\n", l_motor.actual_deg, l_motor.actual_steps);
+                if(command.M.real == 114) {
+                    printf("> Z: %0.2f mm, (%i steps), crashed? %u\n", z_motor.actual_mm, z_motor.actual_steps, z_motor._crash_flag);
+                    printf("> A: %0.2f deg, (%i steps)\n", l_motor.actual_deg, l_motor.actual_steps);
+                }
+                else if(command.M.real == 914) {
+                    // M914 Set bump sensitivity
+                    // https://marlinfw.org/docs/gcode/M914.html
+                    TMC2209_write(z_motor.tmc, TMC2209_SGTHRS, command.Z.real);
+                    printf("> Set stallguard threshold to %u\n", command.Z.real);
+                }
             }
             printf("ok\n");
         }

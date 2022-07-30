@@ -33,3 +33,4 @@ void ZMotor_is_homed(volatile struct ZMotor* m);
 void ZMotor_move_to(volatile struct ZMotor* m, float dest_mm);
 void ZMotor_is_moving(volatile struct ZMotor* m);
 void ZMotor_stop(volatile struct ZMotor* m);
+void ZMotor_set_step_interval(volatile struct ZMotor* m, uint64_t step_us);

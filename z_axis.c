@@ -1,5 +1,6 @@
 #include "z_axis.h"
 #include "config/general.h"
+#include "config/tmc.h"
 #include "drivers/tmc2209_helper.h"
 #include "hardware/gpio.h"
 #include "hardware/sync.h"
@@ -69,18 +70,29 @@ bool ZMotor_setup(struct ZMotor* m) {
     gpio_set_irq_enabled_with_callback(m->pin_diag, GPIO_IRQ_EDGE_RISE, true, &diag_pin_irq);
 
     printf("Starting stepper timer...\n");
-    add_repeating_timer_us(-150, step_timer_callback, NULL, &(m->_step_timer));
+    add_repeating_timer_us(-100, step_timer_callback, NULL, &(m->_step_timer));
 
     return true;
 }
 
 void ZMotor_home(volatile struct ZMotor* m) {
-    m->_homing_state = 1;
     printf("Homing Z... ");
-    while (m->_homing_state == 1) {}
-    printf("Z min set");
-    while (m->_homing_state != 0) {}
-    printf(", Z max set %0.2f mm, %i steps\n", m->actual_mm, m->max_steps);
+    //TMC2209_write(m->tmc, TMC2209_SGTHRS, CONFIG_TMC_HOMING_STALL_THRESHOLD);
+    m->_homing_state = 1;
+    while (m->_homing_state == 1) {
+        sleep_ms(50);
+        uint32_t sg_result;
+        TMC2209_read(m->tmc, TMC2209_SG_RESULT, &sg_result);
+        printf("> SG: %u\n", sg_result);
+    }
+    printf("found stop, bouncing...");
+    while (m->_homing_state != 0) {
+        sleep_ms(50);
+        uint32_t sg_result;
+        TMC2209_read(m->tmc, TMC2209_SG_RESULT, &sg_result);
+        printf("> SG: %u\n", sg_result);
+    }
+    printf("homed!\n", m->actual_mm, m->max_steps);
 }
 
 void ZMotor_move_to(volatile struct ZMotor* m, float dest_mm) {
@@ -88,6 +100,18 @@ void ZMotor_move_to(volatile struct ZMotor* m, float dest_mm) {
     float delta_steps = delta_mm * (float)(Z_STEPS_PER_MM);
     m->_delta_steps = (int32_t)(roundf(delta_steps));
     printf("> Moving Z %0.2f mm (%i steps)\n", delta_mm, m->_delta_steps);
+    while(m->_delta_steps != 0) {
+        sleep_ms(50);
+        uint32_t sg_result;
+        TMC2209_read(m->tmc, TMC2209_SG_RESULT, &sg_result);
+        printf("> SG: %u\n", sg_result);
+    }
+    printf("> Move finished at %0.2f.\n", m->actual_mm);
+}
+
+
+void ZMotor_set_step_interval(volatile struct ZMotor* m, uint64_t step_us) {
+    m->_step_timer.delay_us = step_us;
 }
 
 /*
@@ -98,14 +122,13 @@ static void diag_pin_irq(uint32_t pin, uint32_t events) {
     uint32_t irq_status = save_and_disable_interrupts();
 
     if (current_motor->_homing_state == 1) {
+        current_motor->_delta_steps = 10 * Z_STEPS_PER_MM;
+        current_motor->_homing_state = 2;
+    } else if (current_motor->_homing_state == 3) {
         current_motor->actual_mm = 0.0f;
         current_motor->actual_steps = 0;
-        current_motor->_delta_steps = Z_INITIAL_MAX_STEPS;
-        current_motor->_homing_state = 2;
-    } else if (current_motor->_homing_state == 2) {
-        current_motor->max_steps = current_motor->actual_steps;
+        current_motor->_delta_steps = 0;
         current_motor->_homing_state = 0;
-        current_motor->_delta_steps = -(current_motor->actual_steps / 2);
     } else {
         current_motor->_delta_steps = 0;
         current_motor->_crash_flag = true;
@@ -117,7 +140,7 @@ static void diag_pin_irq(uint32_t pin, uint32_t events) {
 static bool step_timer_callback(repeating_timer_t* rt) {
     uint32_t irq_status = save_and_disable_interrupts();
 
-    if (current_motor->_homing_state == 1) {
+    if (current_motor->_homing_state == 1 || current_motor->_homing_state == 3) {
         gpio_put(current_motor->pin_dir, Z_HOMING_DIR >= 0 ? 1 : 0);
         gpio_put(current_motor->pin_step, current_motor->_step_edge);
         current_motor->_step_edge = !current_motor->_step_edge;
@@ -126,6 +149,9 @@ static bool step_timer_callback(repeating_timer_t* rt) {
     }
 
     if (current_motor->_delta_steps == 0) {
+        if(current_motor->_homing_state == 2) {
+            current_motor->_homing_state = 3;
+        }
         restore_interrupts(irq_status);
         return true;
     }

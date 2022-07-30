@@ -15,6 +15,6 @@
 // Run current (0 to 31)
 #define CONFIG_TMC_RUN_CURRENT 31
 // Hold current (0 to 31)
-#define CONFIG_TMC_HOLD_CURRENT 15
-// Stall detection threshold (0 to 255), lower is more sensitive.
+#define CONFIG_TMC_HOLD_CURRENT 20
+// Stall detection threshold (0 to 255), higher is more sensitive.
 #define CONFIG_TMC_STALL_THRESHOLD 50
