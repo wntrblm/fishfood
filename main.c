@@ -67,11 +67,11 @@ int main() {
                     printf("> set stepping time to %u us\n", command.fields['F' - 'A'].real);
                 }
                 if(command.Z.set) {
-                    float dest_mm = (float)(command.Z.real);
+                    float dest_mm = lilg_Decimal_to_float(command.Z);
                     ZMotor_move_to(&z_motor, dest_mm);
                 }
                 if(command.fields[0].set) {
-                    float dest_deg = (float)(command.fields[0].real);
+                    float dest_deg = lilg_Decimal_to_float(command.fields[0]);
                     RotationalAxis_move_to(&l_motor, dest_deg);
                 }
             }
