@@ -26,8 +26,8 @@ int main() {
     TMC2209_init(&tmc_left, uart1, 0, tmc_uart_read_write);
     TMC2209_init(&tmc_z, uart1, 1, tmc_uart_read_write);
 
-    ZMotor_init(&z_motor, &tmc_left, PIN_M0_EN, PIN_M0_DIR, PIN_M0_STEP, PIN_M0_DIAG);
-    RotationalAxis_init(&l_motor, &tmc_z, PIN_M1_EN, PIN_M1_DIR, PIN_M1_STEP);
+    RotationalAxis_init(&l_motor, &tmc_left, PIN_M0_EN, PIN_M0_DIR, PIN_M0_STEP);
+    ZMotor_init(&z_motor, &tmc_z, PIN_M1_EN, PIN_M1_DIR, PIN_M1_STEP, PIN_M1_DIAG);
 
     // Wait for USB connection.
     while (!stdio_usb_connected()) {}
