@@ -70,7 +70,9 @@ bool ZMotor_setup(struct ZMotor* m) {
     gpio_set_irq_enabled_with_callback(m->pin_diag, GPIO_IRQ_EDGE_RISE, true, &diag_pin_irq);
 
     printf("Starting stepper timer...\n");
-    add_repeating_timer_us(-100, step_timer_callback, NULL, &(m->_step_timer));
+    add_repeating_timer_us(1000, step_timer_callback, NULL, &(m->_step_timer));
+
+    ZMotor_set_velocity(m, 0.0f);
 
     return true;
 }
@@ -115,10 +117,17 @@ void ZMotor_set_step_interval(volatile struct ZMotor* m, int64_t step_us) {
 }
 
 void ZMotor_set_velocity(volatile struct ZMotor* m, float v_mm_s) {
+    if(v_mm_s == 0.0f) {
+        v_mm_s = Z_DEFAULT_VELOCITY_MM_PER_M  / 60.0f;
+    }
     float steps_per_s = (v_mm_s / Z_MM_PER_STEP);
     float s_per_step = 1.0f / steps_per_s;
     int64_t us_per_step = (int64_t)(1000000.0f * s_per_step);
     printf("> steps/s: %0.4f, s/step: %0.6f, us/s: %li\n", steps_per_s, s_per_step, us_per_step);
+    if(us_per_step < 50) {
+        printf("> Can not set a velocity that would result in a step time of less than 50 microseconds.\n");
+        us_per_step = 50;
+    }
     ZMotor_set_step_interval(m, us_per_step);
 }
 
