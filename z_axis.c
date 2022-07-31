@@ -110,8 +110,16 @@ void ZMotor_move_to(volatile struct ZMotor* m, float dest_mm) {
 }
 
 
-void ZMotor_set_step_interval(volatile struct ZMotor* m, uint64_t step_us) {
+void ZMotor_set_step_interval(volatile struct ZMotor* m, int64_t step_us) {
     m->_step_timer.delay_us = step_us;
+}
+
+void ZMotor_set_velocity(volatile struct ZMotor* m, float v_mm_s) {
+    float steps_per_s = (v_mm_s / Z_MM_PER_STEP);
+    float s_per_step = 1.0f / steps_per_s;
+    int64_t us_per_step = (int64_t)(1000000.0f * s_per_step);
+    printf("> steps/s: %0.4f, s/step: %0.6f, us/s: %li\n", steps_per_s, s_per_step, us_per_step);
+    ZMotor_set_step_interval(m, us_per_step);
 }
 
 /*

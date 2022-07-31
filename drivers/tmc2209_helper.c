@@ -32,6 +32,8 @@ bool TMC2209_write_config(struct TMC2209* tmc, uint32_t enable_pin) {
     TMC_SET_FIELD(gconf, TMC2209_GCONF_EN_SPREADCYCLE, 0);
     // Use external RDSon sense resistors
     TMC_SET_FIELD(gconf, TMC2209_GCONF_INTERNAL_RSENSE, CONFIG_TMC_INTERNAL_RSENSE);
+    // Use filtering on the step pin
+    TMC_SET_FIELD(gconf, TMC2209_GCONF_MULTISTEP_FILT, 1);
 
     TMC2209_write(tmc, TMC2209_GCONF, gconf);
 

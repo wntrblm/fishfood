@@ -77,9 +77,9 @@ int main() {
 
         if (valid_command) {
             if (command.G.set && command.G.real == 0) {
-                if (command.fields['F' - 'A'].set) {
-                    ZMotor_set_step_interval(&z_motor, command.fields['F' - 'A'].real);
-                    printf("> set stepping time to %u us\n", command.fields['F' - 'A'].real);
+                if (LILG_FIELD(command, F).set) {
+                    float mm_per_min = lilg_Decimal_to_float(LILG_FIELD(command, F));
+                    ZMotor_set_velocity(&z_motor, mm_per_min / 60.0f);
                 }
                 if (command.Z.set) {
                     float dest_mm = lilg_Decimal_to_float(command.Z);
