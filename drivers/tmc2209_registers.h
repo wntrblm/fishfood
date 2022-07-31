@@ -504,15 +504,15 @@
     (Selection by pins unless disabled by GCONF. mstep_reg_select) */
 #define TMC2209_CHOPCONF_MRES_MASK                    0x0F000000u
 #define TMC2209_CHOPCONF_MRES_SHIFT                   24u
-#define TMC2209_CHOPCONF_MRES_256                     1u
-#define TMC2209_CHOPCONF_MRES_128                     2u
-#define TMC2209_CHOPCONF_MRES_64                      3u
-#define TMC2209_CHOPCONF_MRES_32                      4u
-#define TMC2209_CHOPCONF_MRES_16                      5u
-#define TMC2209_CHOPCONF_MRES_8                       6u
-#define TMC2209_CHOPCONF_MRES_4                       7u
-#define TMC2209_CHOPCONF_MRES_2                       8u
-#define TMC2209_CHOPCONF_MRES_FULLSTEP                9u
+#define TMC2209_CHOPCONF_MRES_256                     0u
+#define TMC2209_CHOPCONF_MRES_128                     1u
+#define TMC2209_CHOPCONF_MRES_64                      2u
+#define TMC2209_CHOPCONF_MRES_32                      3u
+#define TMC2209_CHOPCONF_MRES_16                      4u
+#define TMC2209_CHOPCONF_MRES_8                       5u
+#define TMC2209_CHOPCONF_MRES_4                       6u
+#define TMC2209_CHOPCONF_MRES_2                       7u
+#define TMC2209_CHOPCONF_MRES_FULLSTEP                8u
 /*  CHOPCONF.intpol
     interpolation to 256 microsteps
 

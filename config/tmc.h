@@ -8,8 +8,8 @@
 #define CONFIG_TMC_EXTERNAL_VREF 0
 // Candela has external RDSon sense resistors
 #define CONFIG_TMC_INTERNAL_RSENSE 0
-// Use 32 microsteps
-#define CONFIG_TMC_MICROSTEPS 32
+// Use 16 microsteps
+#define CONFIG_TMC_MICROSTEPS 16
 // Use microstep interpolation
 #define CONFIG_TMC_INTERPOLATION 1
 // Run current (0 to 31)
