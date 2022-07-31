@@ -25,6 +25,8 @@ static struct ZMotor z_motor;
 static struct RotationalAxis l_motor;
 static struct RotationalAxis r_motor;
 
+static bool absolute_positioning = true;
+
 int main() {
     stdio_init_all();
 
@@ -76,25 +78,44 @@ int main() {
         bool valid_command = lilg_parse(&command, (char)(in_c));
 
         if (valid_command) {
-            if (command.G.set && command.G.real == 0) {
-                if (LILG_FIELD(command, F).set) {
-                    float mm_per_min = lilg_Decimal_to_float(LILG_FIELD(command, F));
-                    ZMotor_set_velocity(&z_motor, mm_per_min / 60.0f);
+            if (command.G.set) {
+                if(command.G.real == 0) {
+                    if (LILG_FIELD(command, F).set) {
+                        float mm_per_min = lilg_Decimal_to_float(LILG_FIELD(command, F));
+                        ZMotor_set_velocity(&z_motor, mm_per_min / 60.0f);
+                    }
+                    if (command.Z.set) {
+                        float dest_mm = lilg_Decimal_to_float(command.Z);
+                        if(!absolute_positioning) {
+                            dest_mm = z_motor.actual_mm + dest_mm;
+                        }
+                        ZMotor_move_to(&z_motor, dest_mm);
+                    }
+                    if (LILG_FIELD(command, A).set) {
+                        float dest_deg = lilg_Decimal_to_float(LILG_FIELD(command, A));
+                        if(!absolute_positioning) {
+                            dest_deg = l_motor.actual_deg + dest_deg;
+                        }
+                        RotationalAxis_move_to(&l_motor, dest_deg);
+                    }
                 }
-                if (command.Z.set) {
-                    float dest_mm = lilg_Decimal_to_float(command.Z);
-                    ZMotor_move_to(&z_motor, dest_mm);
+                if (command.G.real == 28) {
+                    // Home axes
+                    // https://marlinfw.org/docs/gcode/G28.html
+                    ZMotor_home(&z_motor);
                 }
-                if (LILG_FIELD(command, A).set) {
-                    float dest_deg = lilg_Decimal_to_float(LILG_FIELD(command, A));
-                    RotationalAxis_move_to(&l_motor, dest_deg);
+                if (command.G.real == 90) {
+                    // Absolute positioning
+                    // https://marlinfw.org/docs/gcode/G090.html
+                    absolute_positioning = true;
+                }
+                if (command.G.real == 91) {
+                    // Relative positioning
+                    // https://marlinfw.org/docs/gcode/G091.html
+                    absolute_positioning = false;
                 }
             }
-            if (command.G.set && command.G.real == 28) {
-                ZMotor_home(&z_motor);
-            }
-            if (command.M.set) {
-
+            else if (command.M.set) {
                 if (command.M.real == 114) {
                     // M114 get current position
                     // https://marlinfw.org/docs/gcode/M114.html
