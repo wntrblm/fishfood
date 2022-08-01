@@ -62,6 +62,10 @@ static void parse_end_field() {
     }
 
     parser.command.fields[parser.field - 'A'] = parser.value;
+    if(parser.command.first_field == 0) {
+        parser.command.first_field = parser.field;
+    }
+
     parse_reset_field();
     parser.valid = true;
 }

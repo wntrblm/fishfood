@@ -78,44 +78,42 @@ int main() {
         bool valid_command = lilg_parse(&command, (char)(in_c));
 
         if (valid_command) {
-            if (command.G.set) {
-                if(command.G.real == 0) {
+            if (command.first_field == 'G') {
+                if (command.G.real == 0) {
                     if (LILG_FIELD(command, F).set) {
                         float mm_per_min = lilg_Decimal_to_float(LILG_FIELD(command, F));
                         ZMotor_set_velocity(&z_motor, mm_per_min / 60.0f);
                     }
                     if (command.Z.set) {
                         float dest_mm = lilg_Decimal_to_float(command.Z);
-                        if(!absolute_positioning) {
+                        if (!absolute_positioning) {
                             dest_mm = z_motor.actual_mm + dest_mm;
                         }
                         ZMotor_move_to(&z_motor, dest_mm);
                     }
                     if (LILG_FIELD(command, A).set) {
                         float dest_deg = lilg_Decimal_to_float(LILG_FIELD(command, A));
-                        if(!absolute_positioning) {
+                        if (!absolute_positioning) {
                             dest_deg = l_motor.actual_deg + dest_deg;
                         }
                         RotationalAxis_move_to(&l_motor, dest_deg);
                     }
-                }
-                if (command.G.real == 28) {
+                } else if (command.G.real == 28) {
                     // Home axes
                     // https://marlinfw.org/docs/gcode/G28.html
                     ZMotor_home(&z_motor);
-                }
-                if (command.G.real == 90) {
+                } else if (command.G.real == 90) {
                     // Absolute positioning
                     // https://marlinfw.org/docs/gcode/G090.html
                     absolute_positioning = true;
-                }
-                if (command.G.real == 91) {
+                } else if (command.G.real == 91) {
                     // Relative positioning
                     // https://marlinfw.org/docs/gcode/G091.html
                     absolute_positioning = false;
+                } else {
+                    printf("Unknown command G%i\n", command.G.real);
                 }
-            }
-            else if (command.M.set) {
+            } else if (command.first_field == 'M') {
                 if (command.M.real == 114) {
                     // M114 get current position
                     // https://marlinfw.org/docs/gcode/M114.html
@@ -138,12 +136,18 @@ int main() {
                         LILG_FIELD(command, G).real,
                         LILG_FIELD(command, B).real);
                     Neopixel_write(pixels, NUM_PIXELS);
-
+                    printf(
+                        "R:%i G:%i B: %i\n",
+                        LILG_FIELD(command, R).real,
+                        LILG_FIELD(command, G).real,
+                        LILG_FIELD(command, B).real);
                 } else if (command.M.real == 914) {
                     // M914 Set bump sensitivity
                     // https://marlinfw.org/docs/gcode/M914.html
                     TMC2209_write(z_motor.tmc, TMC2209_SGTHRS, command.Z.real);
                     printf("> Set stallguard threshold to %u\n", command.Z.real);
+                } else {
+                    printf("Unknown command M%i\n", command.M.real);
                 }
             }
             printf("ok\n");

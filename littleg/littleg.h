@@ -19,6 +19,7 @@ struct lilg_Decimal {
 };
 
 struct lilg_Command {
+  char first_field;
   struct lilg_Decimal G;
   struct lilg_Decimal M;
   struct lilg_Decimal X;

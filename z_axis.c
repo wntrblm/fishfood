@@ -101,12 +101,13 @@ void ZMotor_move_to(volatile struct ZMotor* m, float dest_mm) {
     float delta_mm = dest_mm - m->actual_mm;
     float delta_steps = delta_mm * (float)(Z_STEPS_PER_MM);
     m->_delta_steps = (int32_t)(roundf(delta_steps));
-    printf("> Moving Z %0.2f mm (%i steps)\n", delta_mm, m->_delta_steps);
+    float actual_delta_mm = (m->_delta_steps) * Z_MM_PER_STEP;
+    printf("> Moving Z %0.3f mm (%i steps)\n", actual_delta_mm, m->_delta_steps);
     while(m->_delta_steps != 0) {
-        sleep_ms(50);
-        uint32_t sg_result;
-        TMC2209_read(m->tmc, TMC2209_SG_RESULT, &sg_result);
-        printf("> SG: %u\n", sg_result);
+        // sleep_ms(50);
+        // uint32_t sg_result;
+        // TMC2209_read(m->tmc, TMC2209_SG_RESULT, &sg_result);
+        // printf("> SG: %u\n", sg_result);
     }
     printf("> Move finished at %0.2f.\n", m->actual_mm);
 }
