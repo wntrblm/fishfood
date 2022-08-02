@@ -75,7 +75,7 @@ static bool step_timer_callback(repeating_timer_t* rt) {
         return true;
     }
 
-    gpio_put(current_motor->pin_dir, current_motor->_delta_steps >= 0 ? 1 : 0);
+    gpio_put(current_motor->pin_dir, current_motor->_delta_steps >= 0 ? 0 : 1);
     gpio_put(current_motor->pin_step, current_motor->_step_edge);
     current_motor->_step_edge = !current_motor->_step_edge;
 
