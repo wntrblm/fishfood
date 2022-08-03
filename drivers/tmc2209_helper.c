@@ -91,7 +91,7 @@ bool TMC2209_write_config(struct TMC2209* tmc, uint32_t enable_pin) {
     printf("- Setting IRUN to %u (%0.1fA), IHOLD = %u (%0.1fA)...\n", irun, irun_a, ihold, ihold_a);
     TMC2209_write(tmc, TMC2209_IHOLD_IRUN, ihold_irun);
 
-    uint32_t tpowerdown = TMCC2209_S_TO_TPOWERDOWN(CONFIG_TMC_HOLD_TIME);
+    uint32_t tpowerdown = TMC2209_S_TO_TPOWERDOWN(CONFIG_TMC_HOLD_TIME);
     float tpowerdown_s = TMC2209_TPOWERDOWN_TO_S(tpowerdown);
     printf("- Setting TPOWERDOWN to 0x%02X (%0.2f s)...\n", tpowerdown, tpowerdown_s);
     TMC2209_write(tmc, TMC2209_TPOWERDOWN, tpowerdown);

@@ -26,8 +26,8 @@
 /*
     Converting between time (in seconds) and TPOWERDOWN value
 */
-#define TMC2209_TPOWERDOWN_TO_S(val) ((float)(val * 2 ^ 18) * TMC2209_CLK_PERIOD)
-#define TMCC2209_S_TO_TPOWERDOWN(s) (((uint32_t)((float)(s) / TMC2209_CLK_PERIOD) / 2 ^ 18) & 0xFF)
+#define TMC2209_TPOWERDOWN_TO_S(val) ((float)(val * (2 << 17)) * TMC2209_CLK_PERIOD)
+#define TMC2209_S_TO_TPOWERDOWN(s) (((uint32_t)((float)(s) / TMC2209_CLK_PERIOD) / (2 << 17)) & 0xFF)
 
 bool TMC2209_write_config(struct TMC2209* tmc, uint32_t enable_pin);
 
