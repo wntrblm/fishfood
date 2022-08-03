@@ -141,6 +141,12 @@ int main() {
                         LILG_FIELD(command, R).real,
                         LILG_FIELD(command, G).real,
                         LILG_FIELD(command, B).real);
+                } else if (command.M.real == 204) {
+                    // M204 Set Starting Acceleration
+                    // https://marlinfw.org/docs/gcode/M204.html
+                    float accel = lilg_Decimal_to_float(LILG_FIELD(command, T));
+                    ZMotor_set_acceleration(&z_motor, accel);
+                    printf("> Set acceleration to %0.2f mm/s^2\n", accel);
                 } else if (command.M.real == 914) {
                     // M914 Set bump sensitivity
                     // https://marlinfw.org/docs/gcode/M914.html

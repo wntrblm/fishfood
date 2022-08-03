@@ -33,13 +33,21 @@ void ZMotor_init(
     m->pin_dir = pin_dir;
     m->pin_step = pin_step;
     m->pin_diag = pin_diag;
+
     m->actual_steps = 0;
     m->actual_mm = 0.0f;
-    m->max_steps = 0;
-    m->_delta_steps = 0;
+
+    m->_step_edge = 0;
+    m->_dir = 1;
+
+    m->_accel_step_count = 0;
+    m->_decel_step_count = 0;
+    m->_coast_step_count = 0;
+    m->_total_step_count = 0;
+    m->_step_count = 0;
+
     m->_homing_state = 0;
     m->_crash_flag = 0;
-    m->_step_edge = 0;
 }
 
 bool ZMotor_setup(struct ZMotor* m) {
@@ -72,44 +80,65 @@ bool ZMotor_setup(struct ZMotor* m) {
     printf("Starting stepper timer...\n");
     add_repeating_timer_us(1000, step_timer_callback, NULL, &(m->_step_timer));
 
-    ZMotor_set_velocity(m, 0.0f);
+    ZMotor_set_velocity(m, Z_DEFAULT_VELOCITY_MM_PER_S);
+    ZMotor_set_acceleration(m, Z_DEFAULT_ACCELERATION_MM_PER_S2);
 
     return true;
 }
 
 void ZMotor_home(volatile struct ZMotor* m) {
-    printf("Homing Z... ");
-    //TMC2209_write(m->tmc, TMC2209_SGTHRS, CONFIG_TMC_HOMING_STALL_THRESHOLD);
-    m->_homing_state = 1;
-    while (m->_homing_state == 1) {
-        sleep_ms(50);
-        uint32_t sg_result;
-        TMC2209_read(m->tmc, TMC2209_SG_RESULT, &sg_result);
-        printf("> SG: %u\n", sg_result);
-    }
-    printf("found stop, bouncing...");
-    while (m->_homing_state != 0) {
-        sleep_ms(50);
-        uint32_t sg_result;
-        TMC2209_read(m->tmc, TMC2209_SG_RESULT, &sg_result);
-        printf("> SG: %u\n", sg_result);
-    }
-    printf("homed!\n", m->actual_mm, m->max_steps);
+    // printf("Homing Z... ");
+    // //TMC2209_write(m->tmc, TMC2209_SGTHRS, CONFIG_TMC_HOMING_STALL_THRESHOLD);
+    // m->_homing_state = 1;
+    // while (m->_homing_state == 1) {
+    //     sleep_ms(50);
+    //     uint32_t sg_result;
+    //     TMC2209_read(m->tmc, TMC2209_SG_RESULT, &sg_result);
+    //     printf("> SG: %u\n", sg_result);
+    // }
+    // printf("found stop, bouncing...");
+    // while (m->_homing_state != 0) {
+    //     sleep_ms(50);
+    //     uint32_t sg_result;
+    //     TMC2209_read(m->tmc, TMC2209_SG_RESULT, &sg_result);
+    //     printf("> SG: %u\n", sg_result);
+    // }
+    // printf("homed!\n", m->actual_mm, m->max_steps);
 }
 
 void ZMotor_move_to(volatile struct ZMotor* m, float dest_mm) {
     float delta_mm = dest_mm - m->actual_mm;
-    float delta_steps = delta_mm * (float)(Z_STEPS_PER_MM);
-    m->_delta_steps = (int32_t)(roundf(delta_steps));
-    float actual_delta_mm = (m->_delta_steps) * Z_MM_PER_STEP;
-    printf("> Moving Z %0.3f mm (%i steps)\n", actual_delta_mm, m->_delta_steps);
-    while(m->_delta_steps != 0) {
+    m->_dir = delta_mm < 0 ? -1 : 1;
+
+    float delta_mm_abs = fabs(delta_mm);
+    m->_total_step_count = (int32_t)(roundf(delta_mm_abs * (float)(Z_STEPS_PER_MM)));
+
+    float accel_time_s = m->velocity_mm_s / m->acceleration_mm_s2;
+    float accel_distance_mm = 0.5f * accel_time_s * m->velocity_mm_s;
+    m->_accel_step_count = (int32_t)(roundf(accel_distance_mm * (float)(Z_STEPS_PER_MM)));
+    m->_decel_step_count = m->_accel_step_count;
+    m->_coast_step_count = m->_total_step_count - m->_accel_step_count * 2;
+
+    if(m->_coast_step_count < 0) {
+        m->_accel_step_count = m->_total_step_count / 2;
+        m->_decel_step_count = m->_total_step_count - m->_accel_step_count;
+        m->_coast_step_count = 0;
+    }
+
+    float actual_delta_mm = m->_dir * (m->_total_step_count) * Z_MM_PER_STEP;
+    printf("> Moving Z %0.3f mm (%i steps)\n", actual_delta_mm, m->_dir * m->_total_step_count);
+
+    m->_step_count = 0;
+    ZMotor_set_step_interval(m, 100);
+
+    while(m->_total_step_count != 0) {
         // sleep_ms(50);
         // uint32_t sg_result;
         // TMC2209_read(m->tmc, TMC2209_SG_RESULT, &sg_result);
         // printf("> SG: %u\n", sg_result);
     }
-    printf("> Move finished at %0.2f.\n", m->actual_mm);
+
+    printf("> Move finished at %0.2f (%i steps).\n", m->actual_mm, m->actual_steps);
 }
 
 
@@ -118,18 +147,20 @@ void ZMotor_set_step_interval(volatile struct ZMotor* m, int64_t step_us) {
 }
 
 void ZMotor_set_velocity(volatile struct ZMotor* m, float v_mm_s) {
-    if(v_mm_s == 0.0f) {
-        v_mm_s = Z_DEFAULT_VELOCITY_MM_PER_M  / 60.0f;
-    }
-    float steps_per_s = (v_mm_s / Z_MM_PER_STEP);
-    float s_per_step = 1.0f / steps_per_s;
-    int64_t us_per_step = (int64_t)(1000000.0f * s_per_step);
-    printf("> steps/s: %0.4f, s/step: %0.6f, us/s: %li\n", steps_per_s, s_per_step, us_per_step);
-    if(us_per_step < 50) {
-        printf("> Can not set a velocity that would result in a step time of less than 50 microseconds.\n");
-        us_per_step = 50;
-    }
-    ZMotor_set_step_interval(m, us_per_step);
+    m->velocity_mm_s = v_mm_s;
+    // float steps_per_s = (v_mm_s / Z_MM_PER_STEP);
+    // float s_per_step = 1.0f / steps_per_s;
+    // int64_t us_per_step = (int64_t)(1000000.0f * s_per_step);
+    // printf("> steps/s: %0.4f, s/step: %0.6f, us/s: %li\n", steps_per_s, s_per_step, us_per_step);
+    // if(us_per_step < 50) {
+    //     printf("> Can not set a velocity that would result in a step time of less than 50 microseconds.\n");
+    //     us_per_step = 50;
+    // }
+    // ZMotor_set_step_interval(m, us_per_step);
+}
+
+void ZMotor_set_acceleration(volatile struct ZMotor* m, float a_mm_s2) {
+    m->acceleration_mm_s2 = a_mm_s2;
 }
 
 /*
@@ -137,59 +168,97 @@ void ZMotor_set_velocity(volatile struct ZMotor* m, float v_mm_s) {
 */
 
 static void diag_pin_irq(uint32_t pin, uint32_t events) {
-    uint32_t irq_status = save_and_disable_interrupts();
+    // uint32_t irq_status = save_and_disable_interrupts();
 
-    if (current_motor->_homing_state == 1) {
-        current_motor->_delta_steps = 10 * Z_STEPS_PER_MM;
-        current_motor->_homing_state = 2;
-    } else if (current_motor->_homing_state == 3) {
-        current_motor->actual_mm = 0.0f;
-        current_motor->actual_steps = 0;
-        current_motor->_delta_steps = 0;
-        current_motor->_homing_state = 0;
-    } else {
-        current_motor->_delta_steps = 0;
-        current_motor->_crash_flag = true;
-    }
+    // if (current_motor->_homing_state == 1) {
+    //     current_motor->_delta_steps = 10 * Z_STEPS_PER_MM;
+    //     current_motor->_homing_state = 2;
+    // } else if (current_motor->_homing_state == 3) {
+    //     current_motor->actual_mm = 0.0f;
+    //     current_motor->actual_steps = 0;
+    //     current_motor->_delta_steps = 0;
+    //     current_motor->_homing_state = 0;
+    // } else {
+    //     current_motor->_delta_steps = 0;
+    //     current_motor->_crash_flag = true;
+    // }
 
-    restore_interrupts(irq_status);
+    // restore_interrupts(irq_status);
 }
 
 static bool step_timer_callback(repeating_timer_t* rt) {
     uint32_t irq_status = save_and_disable_interrupts();
+    volatile struct ZMotor* m = current_motor;
 
-    if (current_motor->_homing_state == 1 || current_motor->_homing_state == 3) {
-        gpio_put(current_motor->pin_dir, Z_HOMING_DIR >= 0 ? 1 : 0);
-        gpio_put(current_motor->pin_step, current_motor->_step_edge);
-        current_motor->_step_edge = !current_motor->_step_edge;
-        restore_interrupts(irq_status);
-        return true;
+    // if (current_motor->_homing_state == 1 || current_motor->_homing_state == 3) {
+    //     gpio_put(current_motor->pin_dir, Z_HOMING_DIR >= 0 ? 1 : 0);
+    //     gpio_put(current_motor->pin_step, current_motor->_step_edge);
+    //     current_motor->_step_edge = !current_motor->_step_edge;
+    //     restore_interrupts(irq_status);
+    //     return true;
+    // }
+
+    // if (current_motor->_delta_steps == 0) {
+    //     if(current_motor->_homing_state == 2) {
+    //         current_motor->_homing_state = 3;
+    //     }
+    //     restore_interrupts(irq_status);
+    //     return true;
+    // }
+
+    if(m->_total_step_count == 0) {
+        goto exit;
     }
 
-    if (current_motor->_delta_steps == 0) {
-        if(current_motor->_homing_state == 2) {
-            current_motor->_homing_state = 3;
+    gpio_put(m->pin_dir, m->_dir == 1 ? 1 : 0);
+    gpio_put(m->pin_step, m->_step_edge);
+    m->_step_edge = !m->_step_edge;
+
+    if (m->_step_edge == false) {
+        m->_step_count++;
+        m->actual_steps += m->_dir;
+        m->actual_mm = m->actual_steps * Z_MM_PER_STEP;
+
+        // Is the move finished?
+        if(m->_step_count == m->_total_step_count) {
+            m->_step_count = 0;
+            m->_total_step_count = 0;
+            goto exit;
         }
-        restore_interrupts(irq_status);
-        return true;
-    }
 
-    gpio_put(current_motor->pin_dir, current_motor->_delta_steps >= 0 ? 1 : 0);
-    gpio_put(current_motor->pin_step, current_motor->_step_edge);
-    current_motor->_step_edge = !current_motor->_step_edge;
+        // Calculate instantenous velocity at the current
+        // distance traveled.
+        float distance = m->_step_count * Z_MM_PER_STEP;
+        float inst_velocity;
 
-    if (current_motor->_step_edge == false) {
-        if (current_motor->_delta_steps > 0) {
-            current_motor->_delta_steps--;
-            current_motor->actual_steps++;
-            current_motor->actual_mm += Z_MM_PER_STEP;
+        // Acceleration phase
+        if(m->_step_count < m->_accel_step_count) {
+            inst_velocity = sqrtf(2.0f * distance * m->acceleration_mm_s2);
+        }
+        // Coast phase
+        else if(m->_step_count < m->_accel_step_count + m->_coast_step_count){
+            inst_velocity = m->velocity_mm_s;
+        }
+        // Deceleration phase
+        else {
+            float total_distance = m->_total_step_count * Z_MM_PER_STEP;
+            inst_velocity = sqrtf(2.0f * (total_distance - distance) * m->acceleration_mm_s2);
+        }
+
+        // Calculate the timer period from the velocity
+        float s_per_step;
+        if(inst_velocity > 0.0f) {
+            float steps_per_s = inst_velocity / Z_MM_PER_STEP;
+            s_per_step = 1.0f / steps_per_s;
         } else {
-            current_motor->_delta_steps++;
-            current_motor->actual_steps--;
-            current_motor->actual_mm -= Z_MM_PER_STEP;
+            s_per_step = 0.001f;
         }
+
+        int64_t step_time_us = (int64_t)(s_per_step * 1000000.0f);
+        ZMotor_set_step_interval(m, step_time_us);
     }
 
+exit:
     restore_interrupts(irq_status);
     return true;
 }

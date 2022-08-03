@@ -14,7 +14,7 @@
 // TODO: Revisit this
 #define CONFIG_TMC_VSENSE 0
 // Use 16 microsteps
-#define CONFIG_TMC_MICROSTEPS 16
+#define CONFIG_TMC_MICROSTEPS 32
 // Use microstep interpolation
 #define CONFIG_TMC_INTERPOLATION 1
 // Run current (Amps RMS)

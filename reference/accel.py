@@ -16,8 +16,8 @@ def s_to_us(s):
 
 
 distance_mm = 100
-velocity_mm_s = 80
-accel_mm_s2 = 10
+velocity_mm_s = 100
+accel_mm_s2 = 1000
 
 accel_time_s = velocity_mm_s / accel_mm_s2
 decel_time_s = accel_time_s
@@ -41,6 +41,7 @@ mm_per_step = 1 / steps_per_mm
 max_steps_per_s = velocity_mm_s / mm_per_step
 min_s_per_step = 1 / max_steps_per_s
 min_us_per_step = s_to_us(min_s_per_step)
+max_us_per_step = 10000  # 10 milliseconds
 
 print("> Step conversion constants:")
 print(
@@ -49,6 +50,7 @@ print(
     f"{max_steps_per_s} steps/s (max)\n"
     f"{min_s_per_step} s/step (min)\n"
     f"{min_us_per_step} us/step (min)\n"
+    f"{max_us_per_step} us/step (max)\n"
 )
 
 distance_steps = round(distance_mm * steps_per_mm)
@@ -88,6 +90,8 @@ for steps in range(0, distance_steps+1):
         s_per_step = 0
 
     us_per_step = s_to_us(s_per_step)
+    us_per_step = max(us_per_step, min_us_per_step)
+    us_per_step = min(us_per_step, max_us_per_step)
 
     # print(
     #     f"{steps=:4.0f} {c_distance_mm=:6.2f} mm {c_velocity_mm_s=:5.1f} mm/s {us_per_step=:5.0f} us"
