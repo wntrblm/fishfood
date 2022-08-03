@@ -1,4 +1,4 @@
-#include "config/general.h"
+#include "config/motion.h"
 #include "config/pins.h"
 #include "drivers/neopixel.h"
 #include "drivers/tmc2209.h"

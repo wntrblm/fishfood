@@ -17,7 +17,8 @@ bool TMC2209_write_config(struct TMC2209* tmc, uint32_t enable_pin) {
 
     printf("Configuring TMC2209 @ %u\n", tmc->uart_address);
 
-    printf("- Setting GCONF...\n");
+    printf("- Reading initial GCONF...\n");
+
     result = TMC2209_read(tmc, TMC2209_GCONF, &gconf);
     if (result != TMC_READ_OK)
         return false;
@@ -35,6 +36,7 @@ bool TMC2209_write_config(struct TMC2209* tmc, uint32_t enable_pin) {
     // Use filtering on the step pin
     TMC_SET_FIELD(gconf, TMC2209_GCONF_MULTISTEP_FILT, 1);
 
+    printf("- Setting GCONF to 0x%08X ...\n", gconf);
     TMC2209_write(tmc, TMC2209_GCONF, gconf);
 
     // Readback
@@ -43,14 +45,14 @@ bool TMC2209_write_config(struct TMC2209* tmc, uint32_t enable_pin) {
         return false;
     TMC2209_print_GCONF(gconf);
 
-    printf("- Setting CHOPCONF...\n");
+    printf("- Reading initial CHOPCHOF...\n");
     result = TMC2209_read(tmc, TMC2209_CHOPCONF, &chopconf);
     if (result != TMC_READ_OK)
         return false;
 
-    // Use 32 microsteps
+    // Set up microstep resolution
     TMC_SET_FIELD(chopconf, TMC2209_CHOPCONF_MRES, INDIRECT_LOOKUP(TMC2209_CHOPCONF_MRES, CONFIG_TMC_MICROSTEPS));
-    // Interpolate to 256
+    // Interpolate microsteps to 256
     TMC_SET_FIELD(chopconf, TMC2209_CHOPCONF_INTPOL, CONFIG_TMC_INTERPOLATION);
     // Only advance on one edge of the step pulses (datasheet 1.3.1)
     TMC_SET_FIELD(chopconf, TMC2209_CHOPCONF_DEDGE, 0);
@@ -61,6 +63,7 @@ bool TMC2209_write_config(struct TMC2209* tmc, uint32_t enable_pin) {
     TMC_SET_FIELD(chopconf, TMC2209_CHOPCONF_HSTRT, 0);
     TMC_SET_FIELD(chopconf, TMC2209_CHOPCONF_HEND, 5);
 
+    printf("- Setting CHOPCONF to 0x%08X ...\n", chopconf);
     TMC2209_write(tmc, TMC2209_CHOPCONF, chopconf);
 
     // Readback
@@ -69,18 +72,23 @@ bool TMC2209_write_config(struct TMC2209* tmc, uint32_t enable_pin) {
         return false;
     TMC2209_print_CHOPCONF(chopconf);
 
-    printf("- Setting TCOOLTHRS...\n");
-    // Disable coolstep altogether.
-    TMC2209_write(tmc, TMC2209_TCOOLTHRS, 0xFFFF);
+    // Disable coolstep altogether. TODO: revisit this
+    uint32_t tcoolthrs = 0xFFFF;
+    printf("- Setting TCOOLTHRS to 0x%04X ...\n", tcoolthrs);
+    TMC2209_write(tmc, TMC2209_TCOOLTHRS, tcoolthrs);
 
-    printf("- Setting IHOLD_IRUN... \n");
     uint32_t ihold_irun = 0;
     TMC_SET_FIELD(ihold_irun, TMC2209_IHOLD_IRUN_IRUN, CONFIG_TMC_RUN_CURRENT);
     TMC_SET_FIELD(ihold_irun, TMC2209_IHOLD_IRUN_IHOLD, CONFIG_TMC_HOLD_CURRENT);
     TMC_SET_FIELD(ihold_irun, TMC2209_IHOLD_IRUN_IHOLDDELAY, 10);
+
+    printf("- Setting IHOLD_IRUN to 0x%08X ...\n", ihold_irun);
     TMC2209_write(tmc, TMC2209_IHOLD_IRUN, ihold_irun);
 
-    printf("- Setting up stallguard... \n");
+    printf("- Setting TPOWERDOWN to 0x%02X ...\n", CONFIG_TMC_HOLD_TIME);
+    TMC2209_write(tmc, TMC2209_TPOWERDOWN, CONFIG_TMC_HOLD_TIME);
+
+    printf("- Setting SGTHRS to 0x%02X ...\n", CONFIG_TMC_STALL_THRESHOLD);
     TMC2209_write(tmc, TMC2209_SGTHRS, CONFIG_TMC_STALL_THRESHOLD);
 
     printf("- Enabling stepper... \n");

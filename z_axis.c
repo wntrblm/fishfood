@@ -1,5 +1,5 @@
 #include "z_axis.h"
-#include "config/general.h"
+#include "config/motion.h"
 #include "config/tmc.h"
 #include "drivers/tmc2209_helper.h"
 #include "hardware/gpio.h"

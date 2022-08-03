@@ -1,5 +1,5 @@
 #include "rotational_axis.h"
-#include "config/general.h"
+#include "config/motion.h"
 #include "drivers/tmc2209_helper.h"
 #include "hardware/gpio.h"
 #include "hardware/sync.h"
