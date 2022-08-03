@@ -96,8 +96,8 @@ bool TMC2209_write_config(struct TMC2209* tmc, uint32_t enable_pin) {
     printf("- Setting TPOWERDOWN to 0x%02X (%0.2f s)...\n", tpowerdown, tpowerdown_s);
     TMC2209_write(tmc, TMC2209_TPOWERDOWN, tpowerdown);
 
-    printf("- Setting SGTHRS to 0x%02X ...\n", CONFIG_TMC_STALL_THRESHOLD);
-    TMC2209_write(tmc, TMC2209_SGTHRS, CONFIG_TMC_STALL_THRESHOLD);
+    printf("- Setting SGTHRS to 0x%02X ...\n", 0);
+    TMC2209_write(tmc, TMC2209_SGTHRS, 0);
 
     printf("- Enabling stepper... \n");
     gpio_put(enable_pin, 0);

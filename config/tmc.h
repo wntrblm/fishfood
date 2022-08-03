@@ -24,6 +24,3 @@
 // How long after stopping the motor before it lowers to hold current
 // 0 to around 5.6s
 #define CONFIG_TMC_HOLD_TIME 3.0
-// Default homing stall detection threshold
-// 0 to 255, higher is more sensitive
-#define CONFIG_TMC_STALL_THRESHOLD 80

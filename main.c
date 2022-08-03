@@ -150,8 +150,8 @@ int main() {
                 } else if (command.M.real == 914) {
                     // M914 Set bump sensitivity
                     // https://marlinfw.org/docs/gcode/M914.html
-                    TMC2209_write(z_motor.tmc, TMC2209_SGTHRS, command.Z.real);
-                    printf("> Set stallguard threshold to %u\n", command.Z.real);
+                    ZMotor_set_homing_sensitivity(&z_motor, command.Z.real);
+                    printf("> Set homing sensitivity to %u\n", command.Z.real);
                 } else {
                     printf("Unknown command M%i\n", command.M.real);
                 }

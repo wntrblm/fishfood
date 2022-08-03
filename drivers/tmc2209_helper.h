@@ -21,7 +21,7 @@
     ((((float)(cs) + 1.0f) / 32.0f) * (TMC2209_VSENSE_VOLTAGE(vsense) / (rsense + 0.02f)) * 0.7071f)
 #define _TMC2209_MIN(a, b) (a < b ? a : b)
 #define TMC2209_RMS_TO_CS(rsense, vsense, a)                                                                           \
-    _TMC2209_MIN(32, (roundf((a / 0.7071f / TMC2209_VSENSE_VOLTAGE(vsense) / (rsense + 0.02f) * 32.0f) - 1.0f)))
+    _TMC2209_MIN(31, (roundf((a / 0.7071f / TMC2209_VSENSE_VOLTAGE(vsense) / (rsense + 0.02f) * 32.0f) - 1.0f)))
 
 /*
     Converting between time (in seconds) and TPOWERDOWN value
