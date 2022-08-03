@@ -17,13 +17,13 @@
 #define CONFIG_TMC_MICROSTEPS 16
 // Use microstep interpolation
 #define CONFIG_TMC_INTERPOLATION 1
-// Run current (0 to 31)
-#define CONFIG_TMC_RUN_CURRENT 31
-// Hold current (0 to 31)
-#define CONFIG_TMC_HOLD_CURRENT 25
+// Run current (Amps RMS)
+#define CONFIG_TMC_RUN_CURRENT 1.0
+// Hold current (Amps RMS)
+#define CONFIG_TMC_HOLD_CURRENT 1.0
 // How long after stopping the motor before it lowers to hold current
-// 0 - 255 corresponding to 0 to 5.6s
-#define CONFIG_TMC_HOLD_TIME 128
+// 0 to around 5.6s
+#define CONFIG_TMC_HOLD_TIME 3.0
 // Default homing stall detection threshold
 // 0 to 255, higher is more sensitive
 #define CONFIG_TMC_STALL_THRESHOLD 80

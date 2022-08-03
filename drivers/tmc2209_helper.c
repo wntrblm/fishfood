@@ -80,15 +80,21 @@ bool TMC2209_write_config(struct TMC2209* tmc, uint32_t enable_pin) {
     TMC2209_write(tmc, TMC2209_TCOOLTHRS, tcoolthrs);
 
     uint32_t ihold_irun = 0;
-    TMC_SET_FIELD(ihold_irun, TMC2209_IHOLD_IRUN_IRUN, CONFIG_TMC_RUN_CURRENT);
-    TMC_SET_FIELD(ihold_irun, TMC2209_IHOLD_IRUN_IHOLD, CONFIG_TMC_HOLD_CURRENT);
+    uint32_t irun = TMC2209_RMS_TO_CS(CONFIG_TMC_RSENSE, CONFIG_TMC_VSENSE, CONFIG_TMC_RUN_CURRENT);
+    float irun_a = TMC2209_CS_TO_RMS(CONFIG_TMC_RSENSE, CONFIG_TMC_VSENSE, irun);
+    uint32_t ihold = TMC2209_RMS_TO_CS(CONFIG_TMC_RSENSE, CONFIG_TMC_VSENSE, CONFIG_TMC_HOLD_CURRENT);
+    float ihold_a = TMC2209_CS_TO_RMS(CONFIG_TMC_RSENSE, CONFIG_TMC_VSENSE, ihold);
+    TMC_SET_FIELD(ihold_irun, TMC2209_IHOLD_IRUN_IRUN, irun);
+    TMC_SET_FIELD(ihold_irun, TMC2209_IHOLD_IRUN_IHOLD, ihold);
     TMC_SET_FIELD(ihold_irun, TMC2209_IHOLD_IRUN_IHOLDDELAY, 10);
 
-    printf("- Setting IHOLD_IRUN to 0x%08X ...\n", ihold_irun);
+    printf("- Setting IRUN to %u (%0.1fA), IHOLD = %u (%0.1fA)...\n", irun, irun_a, ihold, ihold_a);
     TMC2209_write(tmc, TMC2209_IHOLD_IRUN, ihold_irun);
 
-    printf("- Setting TPOWERDOWN to 0x%02X ...\n", CONFIG_TMC_HOLD_TIME);
-    TMC2209_write(tmc, TMC2209_TPOWERDOWN, CONFIG_TMC_HOLD_TIME);
+    uint32_t tpowerdown = TMCC2209_S_TO_TPOWERDOWN(CONFIG_TMC_HOLD_TIME);
+    float tpowerdown_s = TMC2209_TPOWERDOWN_TO_S(tpowerdown);
+    printf("- Setting TPOWERDOWN to 0x%02X (%0.2f s)...\n", tpowerdown, tpowerdown_s);
+    TMC2209_write(tmc, TMC2209_TPOWERDOWN, tpowerdown);
 
     printf("- Setting SGTHRS to 0x%02X ...\n", CONFIG_TMC_STALL_THRESHOLD);
     TMC2209_write(tmc, TMC2209_SGTHRS, CONFIG_TMC_STALL_THRESHOLD);
