@@ -8,6 +8,11 @@
 #define CONFIG_TMC_EXTERNAL_VREF 0
 // Candela has external RDSon sense resistors
 #define CONFIG_TMC_INTERNAL_RSENSE 0
+// Rsense value, in Ohms
+#define CONFIG_TMC_RSENSE 0.220f
+// Vsense option (0 = 325mV, 1 = 180mV)
+// TODO: Revisit this
+#define CONFIG_TMC_VSENSE 0
 // Use 16 microsteps
 #define CONFIG_TMC_MICROSTEPS 16
 // Use microstep interpolation

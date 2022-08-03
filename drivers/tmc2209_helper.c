@@ -62,6 +62,8 @@ bool TMC2209_write_config(struct TMC2209* tmc, uint32_t enable_pin) {
     TMC_SET_FIELD(chopconf, TMC2209_CHOPCONF_TOFF, 4);
     TMC_SET_FIELD(chopconf, TMC2209_CHOPCONF_HSTRT, 0);
     TMC_SET_FIELD(chopconf, TMC2209_CHOPCONF_HEND, 5);
+    // Set Vsense
+    TMC_SET_FIELD(chopconf, TMC2209_CHOPCONF_VSENSE, CONFIG_TMC_VSENSE);
 
     printf("- Setting CHOPCONF to 0x%08X ...\n", chopconf);
     TMC2209_write(tmc, TMC2209_CHOPCONF, chopconf);
