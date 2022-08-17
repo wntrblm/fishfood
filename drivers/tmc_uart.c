@@ -13,9 +13,9 @@ void tmc_uart_read_write(
     struct TMC2209* tmc, uint8_t* send_buf, size_t send_len, uint8_t* receive_buf, size_t receive_len) {
 
     // clear any existing rx bytes
-    while (uart_is_readable_within_us(uart1, 100)) { uart_getc(uart1); }
+    while (uart_is_readable_within_us(tmc->uart, 100)) { uart_getc(tmc->uart); }
 
-    uart_write_blocking(uart1, send_buf, send_len);
+    uart_write_blocking(tmc->uart, send_buf, send_len);
 
     /*
         Here's where things get tricky. Since TX and RX are shared the bytes
@@ -31,7 +31,7 @@ void tmc_uart_read_write(
 
         // Read until the sync byte is seen.
         while (true) {
-            byte = uart_getc(uart1);
+            byte = uart_getc(tmc->uart);
             rx_bytes[rx_num] = byte;
             rx_num++;
 
@@ -50,6 +50,7 @@ void tmc_uart_read_write(
                 } else if (byte == 0x05) {
                     continue;
                 } else {
+                    printf("Saw incorrect addr byte 0x%02x, resetting...\n", byte);
                     seen_sync = false;
                 }
             }
@@ -57,7 +58,7 @@ void tmc_uart_read_write(
 
         // Now read the rest of the reply.
         for(size_t n = 2; n < receive_len; n++) {
-            receive_buf[n] = uart_getc(uart1);
+            receive_buf[n] = uart_getc(tmc->uart);
         }
     }
 }

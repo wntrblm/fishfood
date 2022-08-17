@@ -34,9 +34,9 @@ int main() {
     Neopixel_set_all(pixels, NUM_PIXELS, 255, 0, 0);
     Neopixel_write(pixels, NUM_PIXELS);
 
-    TMC2209_init(&tmc_left, uart1, 1, tmc_uart_read_write);
-    TMC2209_init(&tmc_z, uart1, 0, tmc_uart_read_write);
-    TMC2209_init(&tmc_right, uart1, 2, tmc_uart_read_write);
+    TMC2209_init(&tmc_z, uart0, 0, tmc_uart_read_write);
+    TMC2209_init(&tmc_left, uart0, 1, tmc_uart_read_write);
+    TMC2209_init(&tmc_right, uart0, 2, tmc_uart_read_write);
 
     RotationalAxis_init(&l_motor, &tmc_left, PIN_M1_EN, PIN_M1_DIR, PIN_M1_STEP);
     RotationalAxis_init(&r_motor, &tmc_left, PIN_M2_EN, PIN_M2_DIR, PIN_M2_STEP);
@@ -48,7 +48,7 @@ int main() {
     while (!stdio_usb_connected()) {}
 
     printf("Starting UART...\n");
-    uart_init(uart1, 115200);
+    uart_init(uart0, 115200);
     gpio_set_function(PIN_UART_TX, GPIO_FUNC_UART);
     gpio_set_function(PIN_UART_RX, GPIO_FUNC_UART);
 
@@ -97,6 +97,13 @@ int main() {
                             dest_deg = l_motor.actual_deg + dest_deg;
                         }
                         RotationalAxis_move_to(&l_motor, dest_deg);
+                    }
+                    if (LILG_FIELD(command, B).set) {
+                        float dest_deg = lilg_Decimal_to_float(LILG_FIELD(command, B));
+                        if (!absolute_positioning) {
+                            dest_deg = r_motor.actual_deg + dest_deg;
+                        }
+                        RotationalAxis_move_to(&r_motor, dest_deg);
                     }
                 } else if (command.G.real == 28) {
                     // Home axes

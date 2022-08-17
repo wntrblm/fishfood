@@ -26,6 +26,7 @@ pico_generate_pio_header(picostep ${CMAKE_CURRENT_LIST_DIR}/drivers/neopixel.pio
 
 target_include_directories(picostep PUBLIC ${CMAKE_CURRENT_LIST_DIR})
 
+pico_enable_stdio_uart(picostep 0)
 pico_enable_stdio_usb(picostep 1)
 pico_add_extra_outputs(picostep)
 
