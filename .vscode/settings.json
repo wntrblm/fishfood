@@ -4,7 +4,11 @@
         "*.structy": "python",
         "*.toml": "toml",
         "limits": "c",
-        "type_traits": "c"
+        "type_traits": "c",
+        "cmath": "c",
+        "*.tcc": "c",
+        "cinttypes": "c",
+        "cstdlib": "c"
     },
     "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
     "cmake.configureOnOpen": true,
