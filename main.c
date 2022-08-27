@@ -87,7 +87,7 @@ int main() {
                     if (command.Z.set) {
                         float dest_mm = lilg_Decimal_to_float(command.Z);
                         if (!absolute_positioning) {
-                            dest_mm = z_motor.actual_mm + dest_mm;
+                            dest_mm = ZMotor_get_position_mm(&z_motor) + dest_mm;
                         }
                         ZMotor_move_to(&z_motor, dest_mm);
                     }
@@ -126,7 +126,7 @@ int main() {
                     // https://marlinfw.org/docs/gcode/M114.html
                     printf(
                         "Z:%0.2f A:%0.2f B:%0.2f Count Z:%i A:%i B:%i\n",
-                        z_motor.actual_mm,
+                        ZMotor_get_position_mm(&z_motor),
                         l_motor.actual_deg,
                         r_motor.actual_deg,
                         z_motor.actual_steps,

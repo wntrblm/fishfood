@@ -44,7 +44,6 @@ void ZMotor_init(
     m->pin_diag = pin_diag;
 
     m->actual_steps = 0;
-    m->actual_mm = 0.0f;
 
     m->_step_edge = 0;
     m->_dir = 1;
@@ -108,7 +107,6 @@ void ZMotor_home(volatile struct ZMotor* m) {
 
     printf("> Seeking endstop...\n");
     m->_crash_flag = false;
-    m->actual_mm = 0.0f;
     m->actual_steps = 0;
     setup_move(m, Z_HOMING_DIR * Z_HOMING_DISTANCE_MM);
 
@@ -166,7 +164,12 @@ void ZMotor_move_to(volatile struct ZMotor* m, float dest_mm) {
         tight_loop_contents();
     }
 
-    printf("> Move finished at %0.2f (%i steps).\n", m->actual_mm, m->actual_steps);
+    printf("> Move finished at %0.2f (%i steps).\n", ZMotor_get_position_mm(m), m->actual_steps);
+}
+
+
+float ZMotor_get_position_mm(volatile struct ZMotor* m) {
+    return (float)(m->actual_steps) * Z_MM_PER_STEP;
 }
 
 /*
@@ -175,19 +178,19 @@ void ZMotor_move_to(volatile struct ZMotor* m, float dest_mm) {
 
 static void setup_move(volatile struct ZMotor* m, float dest_mm) {
     // Calculate how far to move to bring the motor to the destination.
-    float delta_mm = dest_mm - m->actual_mm;
+    float delta_mm = dest_mm - ZMotor_get_position_mm(m);
     m->_dir = delta_mm < 0 ? -1 : 1;
 
     // Determine the number of steps needed to complete the move.
     float delta_mm_abs = fabs(delta_mm);
-    m->_total_step_count = (int32_t)(roundf(delta_mm_abs * (float)(Z_STEPS_PER_MM)));
+    m->_total_step_count = (int32_t)(lroundf(delta_mm_abs * (float)(Z_STEPS_PER_MM)));
 
     // Determine how long acceleration and deceleration will take and
     // how many steps will be spent in each of the three phases (accelerating,
     // coasting, decelerating).
     float accel_time_s = m->velocity_mm_s / m->acceleration_mm_s2;
     float accel_distance_mm = 0.5f * accel_time_s * m->velocity_mm_s;
-    m->_accel_step_count = (int32_t)(roundf(accel_distance_mm * (float)(Z_STEPS_PER_MM)));
+    m->_accel_step_count = (int32_t)(lroundf(accel_distance_mm * (float)(Z_STEPS_PER_MM)));
     m->_decel_step_count = m->_accel_step_count;
     m->_coast_step_count = m->_total_step_count - m->_accel_step_count * 2;
 
@@ -236,7 +239,6 @@ static bool step_timer_callback(repeating_timer_t* rt) {
     if (m->_step_edge == false) {
         m->_step_count++;
         m->actual_steps += m->_dir;
-        m->actual_mm = m->actual_steps * Z_MM_PER_STEP;
 
         // Is the move finished?
         if(m->_step_count == m->_total_step_count) {

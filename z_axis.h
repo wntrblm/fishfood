@@ -21,7 +21,6 @@ struct ZMotor {
 
     // reported state
     int32_t actual_steps;
-    float actual_mm;
 
     // internal stepping state
     repeating_timer_t _step_timer;
@@ -44,9 +43,9 @@ void ZMotor_init(
 bool ZMotor_setup(struct ZMotor* m);
 void ZMotor_home(volatile struct ZMotor* m);
 void ZMotor_move_to(volatile struct ZMotor* m, float dest_mm);
+float ZMotor_get_position_mm(volatile struct ZMotor* m);
 inline void ZMotor_reset_position(volatile struct ZMotor* m) {
     m->actual_steps = 0;
-    m->actual_mm = 0;
     m->_total_step_count = 0;
     m->_step_count = 0;
 }
