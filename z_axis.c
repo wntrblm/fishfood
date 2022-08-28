@@ -83,13 +83,8 @@ bool ZMotor_setup(struct ZMotor* m) {
         return false;
     }
 
-    current_motor = m;
-
-    printf("Configuring DIAG interrupt...\n");
-    gpio_set_irq_enabled_with_callback(m->pin_diag, GPIO_IRQ_EDGE_RISE, true, &diag_pin_irq);
-
     printf("Starting stepper timer...\n");
-    add_repeating_timer_us(1000, step_timer_callback, NULL, &(m->_step_timer));
+    add_repeating_timer_us(1000, step_timer_callback, (void*)(m), &(m->_step_timer));
 
     return true;
 }
@@ -106,8 +101,14 @@ void ZMotor_home(volatile struct ZMotor* m) {
     TMC2209_write(m->tmc, TMC2209_SGTHRS, m->homing_sensitivity);
 
     printf("> Seeking endstop...\n");
+
+    current_motor = m;
     m->_crash_flag = false;
     m->actual_steps = 0;
+    // TODO: At some point this needs to use a more sophisticated GPIO IRQ,
+    // since the built-in picosdk only provides *one* callback for *all* gpio
+    // events.
+    gpio_set_irq_enabled_with_callback(m->pin_diag, GPIO_IRQ_EDGE_RISE, true, &diag_pin_irq);
     setup_move(m, Z_HOMING_DIR * Z_HOMING_DISTANCE_MM);
 
     while (!m->_crash_flag) {
@@ -219,14 +220,15 @@ static void setup_move(volatile struct ZMotor* m, float dest_mm) {
 }
 
 static void diag_pin_irq(uint32_t pin, uint32_t events) {
-    uint32_t irq_status = save_and_disable_interrupts();
+    if(current_motor == NULL) {
+        return;
+    }
     current_motor->_crash_flag = true;
-    restore_interrupts(irq_status);
 }
 
 static bool step_timer_callback(repeating_timer_t* rt) {
     uint32_t irq_status = save_and_disable_interrupts();
-    volatile struct ZMotor* m = current_motor;
+    volatile struct ZMotor* m = (volatile struct ZMotor*)(rt->user_data);
 
     if(m->_total_step_count == 0) {
         goto exit;

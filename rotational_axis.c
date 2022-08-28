@@ -68,7 +68,7 @@ void RotationalAxis_move_to(volatile struct RotationalAxis* m, float dest_deg) {
 static bool step_timer_callback(repeating_timer_t* rt) {
     uint32_t irq_status = save_and_disable_interrupts();
 
-    struct RotationalAxis* current_motor = (struct RotationalAxis*)(rt->user_data);
+    volatile struct RotationalAxis* current_motor = (volatile struct RotationalAxis*)(rt->user_data);
 
     if (current_motor->_delta_steps == 0) {
         restore_interrupts(irq_status);
