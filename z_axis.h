@@ -14,27 +14,44 @@ struct ZMotor {
     uint32_t pin_step;
     uint32_t pin_diag;
 
-    // motion configuration
+    // Motion configuration. These members can be changed directly.
+
+    // Maximum velocity in mm/s
     float velocity_mm_s;
+    // Constant acceleration in mm/s^2
     float acceleration_mm_s2;
+    // Homing sensitivity, used to set the TMC2209's stallguard threshold.
+    // Higher = more sensitive.
     uint8_t homing_sensitivity;
 
-    // reported state
+    // The actual position of the motor measured in steps. This can be used
+    // to derive the actual position in millimeters. (read only)
     int32_t actual_steps;
 
     // internal stepping state
+
+    // The periodic timer used to send step pulses and update motion
+    // calculations.
     repeating_timer_t _step_timer;
+    // The state of the output pin, used to properly toggle the step output.
     bool _step_edge;
+    // The direction the motor is going in (1 or -1).
     int8_t _dir;
 
-    // internal acceleration and velocity state
-    int32_t _accel_step_count;
-    int32_t _decel_step_count;
-    int32_t _coast_step_count;
-    int32_t _total_step_count;
-    int32_t _step_count;
+    // internal acceleration and velocity state for the current move.
 
-    // internal homing state
+    // Total number of steps to spend accelerating.
+    int32_t _accel_step_count;
+    // Total number of steps to spend decelerating.
+    int32_t _decel_step_count;
+    // Total number of steps between accelerating and decelerating.
+    int32_t _coast_step_count;
+    // Total number of steps that need to be taken.
+    int32_t _total_step_count;
+    // Number of steps taken so far.
+    int32_t _current_step_count;
+
+    // Set whenever stallguard is triggered and causes the DIAG pin to rise.
     int8_t _crash_flag;
 };
 
@@ -47,13 +64,10 @@ float ZMotor_get_position_mm(volatile struct ZMotor* m);
 inline void ZMotor_reset_position(volatile struct ZMotor* m) {
     m->actual_steps = 0;
     m->_total_step_count = 0;
-    m->_step_count = 0;
+    m->_current_step_count = 0;
 }
-inline bool ZMotor_is_moving(volatile struct ZMotor* m) { return m->_total_step_count > 0 ? true : false; }
+inline bool ZMotor_is_moving(volatile struct ZMotor* m) { return m->_total_step_count != 0; }
 inline void ZMotor_stop(volatile struct ZMotor* m) {
     m->_total_step_count = 0;
-    m->_step_count = 0;
+    m->_current_step_count = 0;
 }
-inline void ZMotor_set_velocity(volatile struct ZMotor* m, float v_mm_s) { m->velocity_mm_s = v_mm_s; }
-inline void ZMotor_set_acceleration(volatile struct ZMotor* m, float a_mm_s2) { m->acceleration_mm_s2 = a_mm_s2; }
-inline void ZMotor_set_homing_sensitivity(volatile struct ZMotor* m, uint8_t sense) { m->homing_sensitivity = sense; }

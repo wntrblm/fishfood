@@ -52,7 +52,7 @@ void ZMotor_init(
     m->_decel_step_count = 0;
     m->_coast_step_count = 0;
     m->_total_step_count = 0;
-    m->_step_count = 0;
+    m->_current_step_count = 0;
 
     m->_crash_flag = 0;
 
@@ -214,7 +214,7 @@ static void setup_move(volatile struct ZMotor* m, float dest_mm) {
     printf("> Moving Z %0.3f mm (%i steps)\n", actual_delta_mm, m->_dir * m->_total_step_count);
 
     // Kick-off the step timer.
-    m->_step_count = 0;
+    m->_current_step_count = 0;
     m->_step_timer.delay_us = 10;
 }
 
@@ -237,27 +237,27 @@ static bool step_timer_callback(repeating_timer_t* rt) {
     m->_step_edge = !m->_step_edge;
 
     if (m->_step_edge == false) {
-        m->_step_count++;
+        m->_current_step_count++;
         m->actual_steps += m->_dir;
 
         // Is the move finished?
-        if(m->_step_count == m->_total_step_count) {
-            m->_step_count = 0;
+        if(m->_current_step_count == m->_total_step_count) {
+            m->_current_step_count = 0;
             m->_total_step_count = 0;
             goto exit;
         }
 
         // Calculate instantenous velocity at the current
         // distance traveled.
-        float distance = m->_step_count * Z_MM_PER_STEP;
+        float distance = m->_current_step_count * Z_MM_PER_STEP;
         float inst_velocity;
 
         // Acceleration phase
-        if(m->_step_count < m->_accel_step_count) {
+        if(m->_current_step_count < m->_accel_step_count) {
             inst_velocity = sqrtf(2.0f * distance * m->acceleration_mm_s2);
         }
         // Coast phase
-        else if(m->_step_count < m->_accel_step_count + m->_coast_step_count){
+        else if(m->_current_step_count < m->_accel_step_count + m->_coast_step_count){
             inst_velocity = m->velocity_mm_s;
         }
         // Deceleration phase

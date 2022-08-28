@@ -82,7 +82,7 @@ int main() {
                 if (command.G.real == 0) {
                     if (LILG_FIELD(command, F).set) {
                         float mm_per_min = lilg_Decimal_to_float(LILG_FIELD(command, F));
-                        ZMotor_set_velocity(&z_motor, mm_per_min / 60.0f);
+                        z_motor.velocity_mm_s = mm_per_min / 60.0f;
                     }
                     if (command.Z.set) {
                         float dest_mm = lilg_Decimal_to_float(command.Z);
@@ -152,12 +152,12 @@ int main() {
                     // M204 Set Starting Acceleration
                     // https://marlinfw.org/docs/gcode/M204.html
                     float accel = lilg_Decimal_to_float(LILG_FIELD(command, T));
-                    ZMotor_set_acceleration(&z_motor, accel);
+                    z_motor.acceleration_mm_s2 = accel;
                     printf("> Set acceleration to %0.2f mm/s^2\n", accel);
                 } else if (command.M.real == 914) {
                     // M914 Set bump sensitivity
                     // https://marlinfw.org/docs/gcode/M914.html
-                    ZMotor_set_homing_sensitivity(&z_motor, command.Z.real);
+                    z_motor.homing_sensitivity = command.Z.real;
                     printf("> Set homing sensitivity to %u\n", command.Z.real);
                 } else {
                     printf("Unknown command M%i\n", command.M.real);
