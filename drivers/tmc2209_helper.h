@@ -3,6 +3,9 @@
 #include "drivers/tmc2209.h"
 #include <math.h>
 
+#define _TMC2209_MIN(a, b) (a < b ? a : b)
+#define _TMC2209_MAX(a, b) (a > b ? a : b)
+
 #define TMC2209_CLK_FREQ 12000000
 #define TMC2209_CLK_PERIOD (1.0f / (float)(TMC2209_CLK_FREQ))
 
@@ -15,13 +18,15 @@
 /*
     Converting between current (in Amps RMS) and current scale (IRUN/IHOLD)
     using  sense resistor value (in Ohms), and vsense setting (0 or 1).
-    From datasheet section 9
+    From datasheet section 93
 */
 #define TMC2209_CS_TO_RMS(rsense, vsense, cs)                                                                          \
     ((((float)(cs) + 1.0f) / 32.0f) * (TMC2209_VSENSE_VOLTAGE(vsense) / (rsense + 0.02f)) * 0.7071f)
-#define _TMC2209_MIN(a, b) (a < b ? a : b)
-#define TMC2209_RMS_TO_CS(rsense, vsense, a)                                                                           \
-    _TMC2209_MIN(31, (roundf((a / 0.7071f / TMC2209_VSENSE_VOLTAGE(vsense) / (rsense + 0.02f) * 32.0f) - 1.0f)))
+#define TMC2209_RMS_TO_CS(rsense, vsense, i)                                                                           \
+    _TMC2209_MAX(                                                                                                      \
+        0,                                                                                                             \
+        _TMC2209_MIN(                                                                                                  \
+            31, (roundf(((i * 1.4142f * (rsense + 0.02f) / TMC2209_VSENSE_VOLTAGE(vsense) * 32.0f) - 1.0f)))))
 
 /*
     Converting between time (in seconds) and TPOWERDOWN value
