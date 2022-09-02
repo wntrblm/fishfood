@@ -9,6 +9,7 @@
 #include "hardware/uart.h"
 #include "littleg/littleg.h"
 #include "pico/stdlib.h"
+#include "pico/bootrom.h"
 #include "rotational_axis.h"
 #include "z_axis.h"
 #include <math.h>
@@ -30,17 +31,21 @@ static bool absolute_positioning = true;
 int main() {
     stdio_init_all();
 
+    gpio_init(PIN_ACT_LED);
+    gpio_set_dir(PIN_ACT_LED, GPIO_OUT);
+    gpio_put(PIN_ACT_LED, true);
+
     Neopixel_init(PIN_CAM_LED);
     Neopixel_set_all(pixels, NUM_PIXELS, 255, 0, 0);
     Neopixel_write(pixels, NUM_PIXELS);
 
-    TMC2209_init(&tmc_z, uart0, 0, tmc_uart_read_write);
-    TMC2209_init(&tmc_left, uart0, 1, tmc_uart_read_write);
+    TMC2209_init(&tmc_z, uart0, 1, tmc_uart_read_write);
+    TMC2209_init(&tmc_left, uart0, 0, tmc_uart_read_write);
     TMC2209_init(&tmc_right, uart0, 2, tmc_uart_read_write);
 
-    RotationalAxis_init(&l_motor, &tmc_left, PIN_M1_EN, PIN_M1_DIR, PIN_M1_STEP);
+    ZMotor_init(&z_motor, &tmc_z, PIN_M1_EN, PIN_M1_DIR, PIN_M1_STEP, PIN_M1_DIAG);
+    RotationalAxis_init(&l_motor, &tmc_left, PIN_M0_EN, PIN_M0_DIR, PIN_M0_STEP);
     RotationalAxis_init(&r_motor, &tmc_left, PIN_M2_EN, PIN_M2_DIR, PIN_M2_STEP);
-    ZMotor_init(&z_motor, &tmc_z, PIN_M0_EN, PIN_M0_DIR, PIN_M0_STEP, PIN_M0_DIAG);
 
     // Wait for USB connection.
     Neopixel_set_all(pixels, NUM_PIXELS, 0, 255, 0);
@@ -159,6 +164,10 @@ int main() {
                     // https://marlinfw.org/docs/gcode/M914.html
                     z_motor.homing_sensitivity = command.Z.real;
                     printf("> Set homing sensitivity to %u\n", command.Z.real);
+                } else if (command.M.real == 997) {
+                    // M997 firmware update
+                    // https://marlinfw.org/docs/gcode/M997.html
+                    reset_usb_boot(0, 0);
                 } else {
                     printf("Unknown command M%i\n", command.M.real);
                 }
