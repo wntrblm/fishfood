@@ -50,7 +50,7 @@ void tmc_uart_read_write(
                 } else if (byte == 0x05) {
                     continue;
                 } else {
-                    printf("Saw incorrect addr byte 0x%02x, resetting...\n", byte);
+                    //printf("Saw incorrect addr byte 0x%02x, resetting...\n", byte);
                     seen_sync = false;
                 }
             }
