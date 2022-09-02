@@ -13,5 +13,10 @@
     "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
     "cmake.configureOnOpen": true,
     "C_Cpp.default.cppStandard": "gnu++23",
-    "C_Cpp.default.cStandard": "gnu17"
+    "C_Cpp.default.cStandard": "gnu17",
+    "cmake.sourceDirectory": "${workspaceRoot}",
+    "cmake.buildDirectory": "${workspaceRoot}/build",
+    "cSpell.words": [
+        "decel"
+    ],
 }
