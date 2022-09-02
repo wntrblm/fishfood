@@ -41,11 +41,11 @@ int main() {
 
     TMC2209_init(&tmc_z, uart0, 1, tmc_uart_read_write);
     TMC2209_init(&tmc_left, uart0, 0, tmc_uart_read_write);
-    TMC2209_init(&tmc_right, uart0, 2, tmc_uart_read_write);
+    TMC2209_init(&tmc_right, uart0, 3, tmc_uart_read_write);
 
     ZMotor_init(&z_motor, &tmc_z, PIN_M1_EN, PIN_M1_DIR, PIN_M1_STEP, PIN_M1_DIAG);
     RotationalAxis_init(&l_motor, &tmc_left, PIN_M0_EN, PIN_M0_DIR, PIN_M0_STEP);
-    RotationalAxis_init(&r_motor, &tmc_left, PIN_M2_EN, PIN_M2_DIR, PIN_M2_STEP);
+    RotationalAxis_init(&r_motor, &tmc_right, PIN_M2_EN, PIN_M2_DIR, PIN_M2_STEP);
 
     // Wait for USB connection.
     Neopixel_set_all(pixels, NUM_PIXELS, 0, 255, 0);
