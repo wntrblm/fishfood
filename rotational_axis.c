@@ -44,7 +44,7 @@ bool RotationalAxis_setup(struct RotationalAxis* m) {
     gpio_put(m->pin_step, false);
 
     if (!TMC2209_write_config(m->tmc, m->pin_enn)) {
-        printf("Error configuring rotation motor TMC2209!");
+        printf("Error configuring rotation motor TMC2209!\n");
         return false;
     }
 
