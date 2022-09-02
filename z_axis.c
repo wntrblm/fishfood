@@ -46,7 +46,7 @@ void ZMotor_init(
     m->actual_steps = 0;
 
     m->_step_edge = 0;
-    m->_dir = 1;
+    m->_dir = 0;
 
     m->_accel_step_count = 0;
     m->_decel_step_count = 0;
@@ -165,7 +165,7 @@ void ZMotor_move_to(volatile struct ZMotor* m, float dest_mm) {
         tight_loop_contents();
     }
 
-    printf("> Move finished at %0.2f (%i steps).\n", ZMotor_get_position_mm(m), m->actual_steps);
+    printf("> Move finished at %0.3f (%i steps).\n", ZMotor_get_position_mm(m), m->actual_steps);
 }
 
 
@@ -180,43 +180,51 @@ float ZMotor_get_position_mm(volatile struct ZMotor* m) {
 static void setup_move(volatile struct ZMotor* m, float dest_mm) {
     // Calculate how far to move to bring the motor to the destination.
     float delta_mm = dest_mm - ZMotor_get_position_mm(m);
-    m->_dir = delta_mm < 0 ? -1 : 1;
+    int32_t dir = delta_mm < 0 ? -1 : 1;
 
     // Determine the number of steps needed to complete the move.
     float delta_mm_abs = fabs(delta_mm);
-    m->_total_step_count = (int32_t)(lroundf(delta_mm_abs * (float)(Z_STEPS_PER_MM)));
+    int32_t total_step_count = (int32_t)(lroundf(delta_mm_abs * (float)(Z_STEPS_PER_MM)));
 
     // Determine how long acceleration and deceleration will take and
     // how many steps will be spent in each of the three phases (accelerating,
     // coasting, decelerating).
     float accel_time_s = m->velocity_mm_s / m->acceleration_mm_s2;
     float accel_distance_mm = 0.5f * accel_time_s * m->velocity_mm_s;
-    m->_accel_step_count = (int32_t)(lroundf(accel_distance_mm * (float)(Z_STEPS_PER_MM)));
-    m->_decel_step_count = m->_accel_step_count;
-    m->_coast_step_count = m->_total_step_count - m->_accel_step_count * 2;
+    int32_t accel_step_count = (int32_t)(lroundf(accel_distance_mm * (float)(Z_STEPS_PER_MM)));
+    int32_t decel_step_count = accel_step_count;
+    int32_t coast_step_count = total_step_count - accel_step_count - decel_step_count;
 
     // Check for the case where a move is too short to reach full velocity
     // and therefore has no coasting phase. In this case, the acceleration
     // and deceleration phases will each occupy one half of the total steps.
-    if(m->_coast_step_count < 0) {
-        m->_accel_step_count = m->_total_step_count / 2;
+    if(coast_step_count <= 0) {
+        accel_step_count = total_step_count / 2;
         // Note: use subtraction here instead of just setting it the same
         // as the acceleration step count. This accommodates odd amounts of
         // total steps and ensures that the correct amount of total steps
         // are taken. For example, if there are 11 total steps then
-        // _accel_step_count = 5 and _decel_step_count = 6.
-        m->_decel_step_count = m->_total_step_count - m->_accel_step_count;
-        m->_coast_step_count = 0;
+        // accel_step_count = 5 and decel_step_count = 6.
+        decel_step_count = total_step_count - accel_step_count;
+        coast_step_count = 0;
     }
 
     // Calculate the *actual* distance that the motor will move based on the
     // stepping resolution.
-    float actual_delta_mm = m->_dir * (m->_total_step_count) * Z_MM_PER_STEP;
-    printf("> Moving Z %0.3f mm (%i steps)\n", actual_delta_mm, m->_dir * m->_total_step_count);
+    float actual_delta_mm = dir * total_step_count * Z_MM_PER_STEP;
+    printf("> Moving Z %0.3f mm (%i steps)\n", actual_delta_mm, dir * total_step_count);
 
-    // Kick-off the step timer.
+    // Update motor parameters and kickoff step timer. Disable interrupts to prevent
+    // any wackiness.
+    uint32_t irq_status = save_and_disable_interrupts();
+    m->_accel_step_count = accel_step_count;
+    m->_decel_step_count = decel_step_count;
+    m->_coast_step_count = coast_step_count;
+    m->_dir = dir;
     m->_current_step_count = 0;
+    m->_total_step_count = total_step_count;
     m->_step_timer.delay_us = 10;
+    restore_interrupts(irq_status);
 }
 
 static void diag_pin_irq(uint32_t pin, uint32_t events) {
@@ -234,10 +242,12 @@ static bool step_timer_callback(repeating_timer_t* rt) {
         goto exit;
     }
 
-    gpio_put(m->pin_dir, m->_dir == 1 ? 1 : 0);
+    gpio_put(m->pin_dir, m->_dir == 1 ? 0 : 1);
     gpio_put(m->pin_step, m->_step_edge);
     m->_step_edge = !m->_step_edge;
 
+    // Steps happen on rising edges, so when the _step_edge is reset to false
+    // that means a rising edge was just sent.
     if (m->_step_edge == false) {
         m->_current_step_count++;
         m->actual_steps += m->_dir;
