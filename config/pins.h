@@ -1,6 +1,6 @@
 #pragma once
 
-#define ACT_LED         15
+#define PIN_ACT_LED     15
 #define PIN_CAM_LED     0
 #define PIN_AUX_PIN     1
 
