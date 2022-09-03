@@ -6,8 +6,8 @@
 #include <stdint.h>
 
 /* Macros and constants */
-#define LILG_FIELD_LETTER(letter) ((size_t)(#letter[0] - 'A'))
-#define LILG_FIELD(command, letter) (command.fields[LILG_FIELD_LETTER(letter)])
+#define LILG_FIELDC(command, c) (command.fields[(size_t)(c - 'A')])
+#define LILG_FIELD(command, letter) (command.fields[(size_t)(#letter[0] - 'A')])
 
 /* Structs */
 

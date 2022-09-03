@@ -119,6 +119,10 @@ static void process_incoming_char(char c) {
         case 'M': {
             run_m_command(cmd);
         } break;
+
+        default: {
+            printf("Unexpected command %c%i\n", cmd.first_field, LILG_FIELDC(cmd, cmd.first_field));
+        } break;
     }
 
     printf("ok\n");
