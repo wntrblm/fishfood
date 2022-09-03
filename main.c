@@ -202,6 +202,14 @@ static void run_m_command(struct lilg_Command cmd) {
                 r_motor.actual_steps);
         } break;
 
+        // M122 TMC debugging
+        // https://marlinfw.org/docs/gcode/M122.html
+        case 122: {
+            TMC2209_print_all(&tmc_z);
+            TMC2209_print_all(&tmc_left);
+            TMC2209_print_all(&tmc_right);
+        } break;
+
         // M150 set RGB
         // https://marlinfw.org/docs/gcode/M150.html
         case 150: {

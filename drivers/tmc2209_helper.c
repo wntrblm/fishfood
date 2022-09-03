@@ -98,6 +98,42 @@ bool TMC2209_write_config(struct TMC2209* tmc, uint32_t enable_pin) {
     printf("TMC2209 configured!\n\n");
 }
 
+void TMC2209_print_all(struct TMC2209* tmc) {
+    printf("> TMC2209 @ %u status:\n\n", tmc->uart_address);
+
+    enum TMC2209_read_result result;
+    uint32_t value;
+
+    result = TMC2209_read(tmc, TMC2209_GCONF, &value);
+    if (result != TMC_READ_OK) {
+        goto fail;
+    }
+    TMC2209_print_GCONF(value);
+
+    result = TMC2209_read(tmc, TMC2209_CHOPCONF, &value);
+    if (result != TMC_READ_OK) {
+        goto fail;
+    }
+    TMC2209_print_CHOPCONF(value);
+
+    result = TMC2209_read(tmc, TMC2209_PWMCONF, &value);
+    if (result != TMC_READ_OK) {
+        goto fail;
+    }
+    TMC2209_print_PWMCONF(value);
+
+    result = TMC2209_read(tmc, TMC2209_DRVSTATUS, &value);
+    if (result != TMC_READ_OK) {
+        goto fail;
+    }
+    TMC2209_print_DRVSTATUS(value);
+
+    return;
+
+fail:
+    printf("Unable to communicate with TMC2209!\n");
+}
+
 bool TMC2209_set_current(struct TMC2209* tmc, float run_a, float hold_a) {
     uint32_t ihold_irun = 0;
     uint32_t irun = TMC2209_RMS_TO_CS(CONFIG_TMC_RSENSE, CONFIG_TMC_VSENSE, run_a);
