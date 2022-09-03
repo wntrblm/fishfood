@@ -8,8 +8,8 @@
 #include "hardware/sync.h"
 #include "hardware/uart.h"
 #include "littleg/littleg.h"
-#include "pico/stdlib.h"
 #include "pico/bootrom.h"
+#include "pico/stdlib.h"
 #include "pico/time.h"
 #include "rotational_axis.h"
 #include "z_axis.h"
@@ -32,6 +32,9 @@ static repeating_timer_t step_timer;
 static bool absolute_positioning = true;
 
 static bool step_timer_callback(repeating_timer_t* rt);
+static void process_incoming_char(char c);
+static void run_g_command(struct lilg_Command cmd);
+static void run_m_command(struct lilg_Command cmd);
 
 int main() {
     stdio_init_all();
@@ -76,108 +79,13 @@ int main() {
     Neopixel_set_all(pixels, NUM_PIXELS, 0, 0, 255);
     Neopixel_write(pixels, NUM_PIXELS);
 
-    struct lilg_Command command = {};
-
     while (1) {
         int in_c = getchar();
         if (in_c == EOF) {
             break;
         }
 
-        bool valid_command = lilg_parse(&command, (char)(in_c));
-
-        if (valid_command) {
-            if (command.first_field == 'G') {
-                if (command.G.real == 0) {
-                    if (LILG_FIELD(command, F).set) {
-                        float mm_per_min = lilg_Decimal_to_float(LILG_FIELD(command, F));
-                        z_motor.velocity_mm_s = mm_per_min / 60.0f;
-                    }
-                    if (command.Z.set) {
-                        float dest_mm = lilg_Decimal_to_float(command.Z);
-                        if (!absolute_positioning) {
-                            dest_mm = ZMotor_get_position_mm(&z_motor) + dest_mm;
-                        }
-                        ZMotor_move_to(&z_motor, dest_mm);
-                    }
-                    if (LILG_FIELD(command, A).set) {
-                        float dest_deg = lilg_Decimal_to_float(LILG_FIELD(command, A));
-                        if (!absolute_positioning) {
-                            dest_deg = l_motor.actual_deg + dest_deg;
-                        }
-                        RotationalAxis_move_to(&l_motor, dest_deg);
-                    }
-                    if (LILG_FIELD(command, B).set) {
-                        float dest_deg = lilg_Decimal_to_float(LILG_FIELD(command, B));
-                        if (!absolute_positioning) {
-                            dest_deg = r_motor.actual_deg + dest_deg;
-                        }
-                        RotationalAxis_move_to(&r_motor, dest_deg);
-                    }
-                } else if (command.G.real == 28) {
-                    // Home axes
-                    // https://marlinfw.org/docs/gcode/G28.html
-                    ZMotor_home(&z_motor);
-                } else if (command.G.real == 90) {
-                    // Absolute positioning
-                    // https://marlinfw.org/docs/gcode/G090.html
-                    absolute_positioning = true;
-                } else if (command.G.real == 91) {
-                    // Relative positioning
-                    // https://marlinfw.org/docs/gcode/G091.html
-                    absolute_positioning = false;
-                } else {
-                    printf("Unknown command G%i\n", command.G.real);
-                }
-            } else if (command.first_field == 'M') {
-                if (command.M.real == 114) {
-                    // M114 get current position
-                    // https://marlinfw.org/docs/gcode/M114.html
-                    printf(
-                        "Z:%0.2f A:%0.2f B:%0.2f Count Z:%i A:%i B:%i\n",
-                        ZMotor_get_position_mm(&z_motor),
-                        l_motor.actual_deg,
-                        r_motor.actual_deg,
-                        z_motor.actual_steps,
-                        l_motor.actual_steps,
-                        r_motor.actual_steps);
-
-                } else if (command.M.real == 150) {
-                    // M150 set RGB
-                    // https://marlinfw.org/docs/gcode/M150.html
-                    Neopixel_set_all(
-                        pixels,
-                        NUM_PIXELS,
-                        LILG_FIELD(command, R).real,
-                        LILG_FIELD(command, G).real,
-                        LILG_FIELD(command, B).real);
-                    Neopixel_write(pixels, NUM_PIXELS);
-                    printf(
-                        "R:%i G:%i B: %i\n",
-                        LILG_FIELD(command, R).real,
-                        LILG_FIELD(command, G).real,
-                        LILG_FIELD(command, B).real);
-                } else if (command.M.real == 204) {
-                    // M204 Set Starting Acceleration
-                    // https://marlinfw.org/docs/gcode/M204.html
-                    float accel = lilg_Decimal_to_float(LILG_FIELD(command, T));
-                    z_motor.acceleration_mm_s2 = accel;
-                    printf("> Set acceleration to %0.2f mm/s^2\n", accel);
-                } else if (command.M.real == 914) {
-                    // M914 Set bump sensitivity
-                    // https://marlinfw.org/docs/gcode/M914.html
-                    z_motor.homing_sensitivity = command.Z.real;
-                    printf("> Set homing sensitivity to %u\n", command.Z.real);
-                } else if (command.M.real == 997) {
-                    // M997 firmware update
-                    // https://marlinfw.org/docs/gcode/M997.html
-                    reset_usb_boot(0, 0);
-                } else {
-                    printf("Unknown command M%i\n", command.M.real);
-                }
-            }
-            printf("ok\n");
-        }
+        process_incoming_char((char)(in_c));
     }
 
     printf("Main loop exited due to end of file on stdin\n");
@@ -186,4 +94,140 @@ int main() {
 static bool step_timer_callback(repeating_timer_t* rt) {
     ZMotor_step(&z_motor);
     return true;
+}
+
+static void process_incoming_char(char c) {
+    static struct lilg_Command cmd = {};
+
+    enum lilg_ParseResult result = lilg_parse(&cmd, c);
+
+    if (result == LILG_INCOMPLETE) {
+        return;
+    }
+
+    if (result == LILG_INVALID) {
+        printf("Invalid command\n");
+        printf("ok\n");
+        return;
+    }
+
+    switch (cmd.first_field) {
+        case 'G': {
+            run_g_command(cmd);
+        } break;
+
+        case 'M': {
+            run_m_command(cmd);
+        } break;
+    }
+
+    printf("ok\n");
+}
+
+static void run_g_command(struct lilg_Command cmd) {
+    switch (cmd.G.real) {
+        // Linear move
+        // https://marlinfw.org/docs/gcode/G000-G001.html
+        case 0: {
+            if (LILG_FIELD(cmd, F).set) {
+                float mm_per_min = lilg_Decimal_to_float(LILG_FIELD(cmd, F));
+                z_motor.velocity_mm_s = mm_per_min / 60.0f;
+            }
+            if (cmd.Z.set) {
+                float dest_mm = lilg_Decimal_to_float(cmd.Z);
+                if (!absolute_positioning) {
+                    dest_mm = ZMotor_get_position_mm(&z_motor) + dest_mm;
+                }
+                ZMotor_move_to(&z_motor, dest_mm);
+            }
+            if (LILG_FIELD(cmd, A).set) {
+                float dest_deg = lilg_Decimal_to_float(LILG_FIELD(cmd, A));
+                if (!absolute_positioning) {
+                    dest_deg = l_motor.actual_deg + dest_deg;
+                }
+                RotationalAxis_move_to(&l_motor, dest_deg);
+            }
+            if (LILG_FIELD(cmd, B).set) {
+                float dest_deg = lilg_Decimal_to_float(LILG_FIELD(cmd, B));
+                if (!absolute_positioning) {
+                    dest_deg = r_motor.actual_deg + dest_deg;
+                }
+                RotationalAxis_move_to(&r_motor, dest_deg);
+            }
+        } break;
+
+        // Home axes
+        // https://marlinfw.org/docs/gcode/G28.html
+        case 28: {
+            ZMotor_home(&z_motor);
+        } break;
+
+        // Absolute positioning
+        // https://marlinfw.org/docs/gcode/G090.html
+        case 90: {
+            absolute_positioning = true;
+        } break;
+
+        // Relative positioning
+        // https://marlinfw.org/docs/gcode/G091.html
+        case 91: {
+            absolute_positioning = false;
+        } break;
+
+        default:
+            printf("Unknown command G%i\n", cmd.G.real);
+            break;
+    }
+}
+
+static void run_m_command(struct lilg_Command cmd) {
+    switch (cmd.M.real) {
+
+        // M114 get current position
+        // https://marlinfw.org/docs/gcode/M114.html
+        case 114: {
+            printf(
+                "Z:%0.2f A:%0.2f B:%0.2f Count Z:%i A:%i B:%i\n",
+                ZMotor_get_position_mm(&z_motor),
+                l_motor.actual_deg,
+                r_motor.actual_deg,
+                z_motor.actual_steps,
+                l_motor.actual_steps,
+                r_motor.actual_steps);
+        } break;
+
+        // M150 set RGB
+        // https://marlinfw.org/docs/gcode/M150.html
+        case 150: {
+            Neopixel_set_all(
+                pixels, NUM_PIXELS, LILG_FIELD(cmd, R).real, LILG_FIELD(cmd, G).real, LILG_FIELD(cmd, B).real);
+            Neopixel_write(pixels, NUM_PIXELS);
+            printf("R:%i G:%i B: %i\n", LILG_FIELD(cmd, R).real, LILG_FIELD(cmd, G).real, LILG_FIELD(cmd, B).real);
+        } break;
+
+        // M204 Set Starting Acceleration
+        // https://marlinfw.org/docs/gcode/M204.html
+        case 204: {
+            float accel = lilg_Decimal_to_float(LILG_FIELD(cmd, T));
+            z_motor.acceleration_mm_s2 = accel;
+            printf("> Set acceleration to %0.2f mm/s^2\n", accel);
+        } break;
+
+        // M914 Set bump sensitivity
+        // https://marlinfw.org/docs/gcode/M914.html
+        case 914: {
+            z_motor.homing_sensitivity = cmd.Z.real;
+            printf("> Set homing sensitivity to %u\n", cmd.Z.real);
+        } break;
+
+        // M997 firmware update
+        // https://marlinfw.org/docs/gcode/M997.html
+        case 997: {
+            reset_usb_boot(0, 0);
+        } break;
+
+        default:
+            printf("Unknown command M%i\n", cmd.M.real);
+            break;
+    }
 }

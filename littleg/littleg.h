@@ -28,6 +28,12 @@ struct lilg_Command {
   struct lilg_Decimal fields[26];
 };
 
+enum lilg_ParseResult {
+  LILG_VALID = 0,
+  LILG_INVALID = 1,
+  LILG_INCOMPLETE = 2,
+};
+
 /* Public methods */
 
 inline static float lilg_Decimal_to_float(struct lilg_Decimal d) {
@@ -38,6 +44,6 @@ inline static float lilg_Decimal_to_float(struct lilg_Decimal d) {
   return real + frac;
 }
 
-bool lilg_parse(struct lilg_Command* cmd, char c);
+enum lilg_ParseResult lilg_parse(struct lilg_Command* cmd, char c);
 
 void lilg_Command_print(struct lilg_Command* cmd);

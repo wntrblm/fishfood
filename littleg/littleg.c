@@ -70,7 +70,7 @@ static void parse_end_field() {
     parser.valid = true;
 }
 
-bool lilg_parse(struct lilg_Command* command, char c) {
+enum lilg_ParseResult lilg_parse(struct lilg_Command* command, char c) {
     if (parser.state == PARSING_EOL) {
         parse_reset();
     }
@@ -87,7 +87,7 @@ bool lilg_parse(struct lilg_Command* command, char c) {
         parser.state = PARSING_EOL;
         // A valid command is ready if any field was seen during this line.
         memcpy(command, &parser.command, sizeof(struct lilg_Command));
-        return parser.valid;
+        return parser.valid ? LILG_VALID : LILG_INVALID;
     }
 
     switch (parser.state) {
@@ -132,14 +132,14 @@ bool lilg_parse(struct lilg_Command* command, char c) {
         }
 
         case PARSING_COMMENT: {
-            return false;
+            return LILG_INCOMPLETE;
         }
 
         default:
-            return false;
+            return LILG_INCOMPLETE;
     }
 
-    return false;
+    return LILG_INCOMPLETE;
 }
 
 void lilg_Command_print(struct lilg_Command* cmd) {
