@@ -35,11 +35,9 @@
 #define TMC2209_S_TO_TPOWERDOWN(s) (((uint32_t)((float)(s) / TMC2209_CLK_PERIOD) / (2 << 17)) & 0xFF)
 
 bool TMC2209_write_config(struct TMC2209* tmc, uint32_t enable_pin);
+bool TMC2209_set_current(struct TMC2209* tmc, float run_a, float hold_a);
 
 void TMC2209_print_GCONF(uint32_t gconf);
-
 void TMC2209_print_CHOPCONF(uint32_t chopconf);
-
 void TMC2209_print_PWMCONF(uint32_t pwmconf);
-
 void TMC2209_print_DRVSTATUS(uint32_t drvstatus);

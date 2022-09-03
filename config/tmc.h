@@ -19,8 +19,8 @@
 #define CONFIG_TMC_INTERPOLATION 1
 // Run current (Amps RMS)
 #define CONFIG_TMC_RUN_CURRENT 0.6
-// Hold current (Amps RMS)
-#define CONFIG_TMC_HOLD_CURRENT 0.4
+// Hold current multiplier
+#define CONFIG_TMC_HOLD_CURRENT_MULTIPLIER 0.8f
 // How long after stopping the motor before it lowers to hold current
 // 0 to around 5.6s
 #define CONFIG_TMC_HOLD_TIME 3.0

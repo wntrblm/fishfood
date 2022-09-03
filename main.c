@@ -1,5 +1,6 @@
 #include "config/motion.h"
 #include "config/pins.h"
+#include "config/tmc.h"
 #include "drivers/neopixel.h"
 #include "drivers/tmc2209.h"
 #include "drivers/tmc2209_helper.h"
@@ -133,6 +134,7 @@ static void run_g_command(struct lilg_Command cmd) {
         // Linear move
         // https://marlinfw.org/docs/gcode/G000-G001.html
         case 0: {
+            // F is "feed rate", or velocity in mm/min
             if (LILG_FIELD(cmd, F).set) {
                 float mm_per_min = lilg_Decimal_to_float(LILG_FIELD(cmd, F));
                 z_motor.velocity_mm_s = mm_per_min / 60.0f;
@@ -203,10 +205,12 @@ static void run_m_command(struct lilg_Command cmd) {
         // M150 set RGB
         // https://marlinfw.org/docs/gcode/M150.html
         case 150: {
-            Neopixel_set_all(
-                pixels, NUM_PIXELS, LILG_FIELD(cmd, R).real, LILG_FIELD(cmd, G).real, LILG_FIELD(cmd, B).real);
+            int32_t r = LILG_FIELD(cmd, R).real;
+            int32_t g = LILG_FIELD(cmd, G).real;
+            int32_t b = LILG_FIELD(cmd, B).real;
+            Neopixel_set_all(pixels, NUM_PIXELS, r, g, b);
             Neopixel_write(pixels, NUM_PIXELS);
-            printf("R:%i G:%i B: %i\n", LILG_FIELD(cmd, R).real, LILG_FIELD(cmd, G).real, LILG_FIELD(cmd, B).real);
+            printf("R:%i G:%i B: %i\n", r, g, b);
         } break;
 
         // M204 Set Starting Acceleration
@@ -215,6 +219,23 @@ static void run_m_command(struct lilg_Command cmd) {
             float accel = lilg_Decimal_to_float(LILG_FIELD(cmd, T));
             z_motor.acceleration_mm_s2 = accel;
             printf("> Set acceleration to %0.2f mm/s^2\n", accel);
+        } break;
+
+        // M906 Set motor current
+        // https://marlinfw.org/docs/gcode/M906.html
+        case 906: {
+            if (cmd.Z.set) {
+                float current = lilg_Decimal_to_float(cmd.Z);
+                TMC2209_set_current(&tmc_z, current, current * CONFIG_TMC_HOLD_CURRENT_MULTIPLIER);
+            }
+            if (LILG_FIELD(cmd, A).set) {
+                float current = lilg_Decimal_to_float(LILG_FIELD(cmd, A));
+                TMC2209_set_current(&tmc_left, current, current * CONFIG_TMC_HOLD_CURRENT_MULTIPLIER);
+            }
+            if (LILG_FIELD(cmd, B).set) {
+                float current = lilg_Decimal_to_float(LILG_FIELD(cmd, B));
+                TMC2209_set_current(&tmc_right, current, current * CONFIG_TMC_HOLD_CURRENT_MULTIPLIER);
+            }
         } break;
 
         // M914 Set bump sensitivity

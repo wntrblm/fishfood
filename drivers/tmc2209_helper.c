@@ -79,17 +79,7 @@ bool TMC2209_write_config(struct TMC2209* tmc, uint32_t enable_pin) {
     printf("- Setting TCOOLTHRS to 0x%04X ...\n", tcoolthrs);
     TMC2209_write(tmc, TMC2209_TCOOLTHRS, tcoolthrs);
 
-    uint32_t ihold_irun = 0;
-    uint32_t irun = TMC2209_RMS_TO_CS(CONFIG_TMC_RSENSE, CONFIG_TMC_VSENSE, CONFIG_TMC_RUN_CURRENT);
-    float irun_a = TMC2209_CS_TO_RMS(CONFIG_TMC_RSENSE, CONFIG_TMC_VSENSE, irun);
-    uint32_t ihold = TMC2209_RMS_TO_CS(CONFIG_TMC_RSENSE, CONFIG_TMC_VSENSE, CONFIG_TMC_HOLD_CURRENT);
-    float ihold_a = TMC2209_CS_TO_RMS(CONFIG_TMC_RSENSE, CONFIG_TMC_VSENSE, ihold);
-    TMC_SET_FIELD(ihold_irun, TMC2209_IHOLD_IRUN_IRUN, irun);
-    TMC_SET_FIELD(ihold_irun, TMC2209_IHOLD_IRUN_IHOLD, ihold);
-    TMC_SET_FIELD(ihold_irun, TMC2209_IHOLD_IRUN_IHOLDDELAY, 10);
-
-    printf("- Setting IRUN to %u (%0.1fA), IHOLD = %u (%0.1fA)...\n", irun, irun_a, ihold, ihold_a);
-    TMC2209_write(tmc, TMC2209_IHOLD_IRUN, ihold_irun);
+    TMC2209_set_current(tmc, CONFIG_TMC_RUN_CURRENT, CONFIG_TMC_RUN_CURRENT * CONFIG_TMC_HOLD_CURRENT_MULTIPLIER);
 
     uint32_t tpowerdown = TMC2209_S_TO_TPOWERDOWN(CONFIG_TMC_HOLD_TIME);
     float tpowerdown_s = TMC2209_TPOWERDOWN_TO_S(tpowerdown);
@@ -106,6 +96,21 @@ bool TMC2209_write_config(struct TMC2209* tmc, uint32_t enable_pin) {
     TMC2209_write(tmc, TMC2209_DRVSTATUS, 0b111);
 
     printf("TMC2209 configured!\n\n");
+}
+
+bool TMC2209_set_current(struct TMC2209* tmc, float run_a, float hold_a) {
+    uint32_t ihold_irun = 0;
+    uint32_t irun = TMC2209_RMS_TO_CS(CONFIG_TMC_RSENSE, CONFIG_TMC_VSENSE, run_a);
+    float irun_a = TMC2209_CS_TO_RMS(CONFIG_TMC_RSENSE, CONFIG_TMC_VSENSE, irun);
+    uint32_t ihold = TMC2209_RMS_TO_CS(CONFIG_TMC_RSENSE, CONFIG_TMC_VSENSE, hold_a);
+    float ihold_a = TMC2209_CS_TO_RMS(CONFIG_TMC_RSENSE, CONFIG_TMC_VSENSE, ihold);
+
+    TMC_SET_FIELD(ihold_irun, TMC2209_IHOLD_IRUN_IRUN, irun);
+    TMC_SET_FIELD(ihold_irun, TMC2209_IHOLD_IRUN_IHOLD, ihold);
+    TMC_SET_FIELD(ihold_irun, TMC2209_IHOLD_IRUN_IHOLDDELAY, 10);
+
+    printf("- Setting IRUN to %u (%0.1fA), IHOLD = %u (%0.1fA)...\n", irun, irun_a, ihold, ihold_a);
+    TMC2209_write(tmc, TMC2209_IHOLD_IRUN, ihold_irun);
 }
 
 void TMC2209_print_GCONF(uint32_t gconf) {
