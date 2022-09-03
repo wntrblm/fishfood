@@ -47,9 +47,10 @@ int main() {
     RotationalAxis_init(&l_motor, &tmc_left, PIN_M0_EN, PIN_M0_DIR, PIN_M0_STEP);
     RotationalAxis_init(&r_motor, &tmc_right, PIN_M2_EN, PIN_M2_DIR, PIN_M2_STEP);
 
-    // Wait for USB connection.
     Neopixel_set_all(pixels, NUM_PIXELS, 0, 255, 0);
     Neopixel_write(pixels, NUM_PIXELS);
+
+    // Wait for USB connection before continuing.
     while (!stdio_usb_connected()) {}
 
     printf("Starting UART...\n");
@@ -72,12 +73,6 @@ int main() {
         int in_c = getchar();
         if (in_c == EOF) {
             break;
-        }
-
-        // Echo TODO: Remove this
-        putchar(in_c);
-        if (in_c == '\r') {
-            putchar('\n');
         }
 
         bool valid_command = lilg_parse(&command, (char)(in_c));
