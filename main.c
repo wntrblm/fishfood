@@ -229,6 +229,12 @@ static void run_m_command(struct lilg_Command cmd) {
                 r_motor.actual_steps);
         } break;
 
+        // M115 get firmware info
+        // https://marlinfw.org/docs/gcode/M115.html
+        case 115: {
+            printf("FIRMWARE_NAME:Picostep\n");
+        } break;
+
         // M122 TMC debugging
         // https://marlinfw.org/docs/gcode/M122.html
         case 122: {
