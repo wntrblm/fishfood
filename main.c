@@ -1,6 +1,5 @@
 #include "config/motion.h"
 #include "config/pins.h"
-#include "config/tmc.h"
 #include "drivers/neopixel.h"
 #include "drivers/tmc2209.h"
 #include "drivers/tmc2209_helper.h"
@@ -53,8 +52,8 @@ int main() {
     TMC2209_init(&tmc_right, uart0, 3, tmc_uart_read_write);
 
     ZMotor_init(&z_motor, &tmc_z, PIN_M1_EN, PIN_M1_DIR, PIN_M1_STEP, PIN_M1_DIAG);
-    RotationalAxis_init(&l_motor, &tmc_left, PIN_M0_EN, PIN_M0_DIR, PIN_M0_STEP);
-    RotationalAxis_init(&r_motor, &tmc_right, PIN_M2_EN, PIN_M2_DIR, PIN_M2_STEP);
+    RotationalAxis_init(&l_motor, &tmc_left, PIN_M0_EN, PIN_M0_DIR, PIN_M0_STEP, A_STEPS_PER_DEG);
+    RotationalAxis_init(&r_motor, &tmc_right, PIN_M2_EN, PIN_M2_DIR, PIN_M2_STEP, A_STEPS_PER_DEG);
 
     Neopixel_set_all(pixels, NUM_PIXELS, 0, 255, 0);
     Neopixel_write(pixels, NUM_PIXELS);
@@ -72,9 +71,16 @@ int main() {
     RotationalAxis_setup(&l_motor);
     RotationalAxis_setup(&r_motor);
 
+    printf("Setting motor current...\n");
+    TMC2209_set_current(&tmc_z, Z_RUN_CURRENT, Z_RUN_CURRENT * Z_HOLD_CURRENT_MULTIPLIER);
+    TMC2209_set_current(&tmc_left, A_RUN_CURRENT, A_RUN_CURRENT * A_HOLD_CURRENT_MULTIPLIER);
+    TMC2209_set_current(&tmc_right, B_RUN_CURRENT, B_RUN_CURRENT * B_HOLD_CURRENT_MULTIPLIER);
+
     printf("Starting step timer...\n");
+    uint32_t irq_status = save_and_disable_interrupts();
     // 50us is 20kHz, fast enough to achieve speeds up to 200mm/s.
     add_repeating_timer_us(-50, step_timer_callback, NULL, &step_timer);
+    restore_interrupts(irq_status);
 
     printf("Ready!\n");
     Neopixel_set_all(pixels, NUM_PIXELS, 0, 0, 255);
@@ -94,6 +100,8 @@ int main() {
 
 static bool step_timer_callback(repeating_timer_t* rt) {
     ZMotor_step(&z_motor);
+    RotationalAxis_step(&l_motor);
+    RotationalAxis_step(&r_motor);
     return true;
 }
 
@@ -267,15 +275,15 @@ static void run_m_command(struct lilg_Command cmd) {
         case 906: {
             if (cmd.Z.set) {
                 float current = lilg_Decimal_to_float(cmd.Z);
-                TMC2209_set_current(&tmc_z, current, current * CONFIG_TMC_HOLD_CURRENT_MULTIPLIER);
+                TMC2209_set_current(&tmc_z, current, current * Z_HOLD_CURRENT_MULTIPLIER);
             }
             if (LILG_FIELD(cmd, A).set) {
                 float current = lilg_Decimal_to_float(LILG_FIELD(cmd, A));
-                TMC2209_set_current(&tmc_left, current, current * CONFIG_TMC_HOLD_CURRENT_MULTIPLIER);
+                TMC2209_set_current(&tmc_left, current, current * A_HOLD_CURRENT_MULTIPLIER);
             }
             if (LILG_FIELD(cmd, B).set) {
                 float current = lilg_Decimal_to_float(LILG_FIELD(cmd, B));
-                TMC2209_set_current(&tmc_right, current, current * CONFIG_TMC_HOLD_CURRENT_MULTIPLIER);
+                TMC2209_set_current(&tmc_right, current, current * B_HOLD_CURRENT_MULTIPLIER);
             }
         } break;
 

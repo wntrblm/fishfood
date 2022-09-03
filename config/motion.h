@@ -1,5 +1,33 @@
 #pragma once
 
+#include "drivers/tmc2209_helper.h"
+
+/*
+    Common configuration for all TMC2209 drivers.
+*/
+
+// Candela uses the internal VREF
+#define TMC_EXTERNAL_VREF 0
+// Candela has external RDSon sense resistors
+#define TMC_INTERNAL_RSENSE 0
+// Rsense value in Ohms
+#define TMC_RSENSE 0.220f
+// Vsense option (0 = 325mV, 1 = 180mV)
+#define TMC_VSENSE 0
+// Use 32 microsteps per full step
+#define TMC_MICROSTEPS 32
+// Use microstep interpolation
+#define TMC_INTERPOLATION 1
+// How long after stopping the motor before it lowers to hold
+// current, can be between 0 and 5.6s.
+#define TMC_HOLD_TIME 3.0
+
+/*
+    Configuration for the Z axis
+*/
+
+#define Z_RUN_CURRENT 0.5
+#define Z_HOLD_CURRENT_MULTIPLIER 0.8
 #define Z_DEFAULT_VELOCITY_MM_S 150.0f
 #define Z_DEFAULT_ACCELERATION_MM_S2 3000.0f
 #define Z_STEPS_PER_MM 160
@@ -13,5 +41,14 @@
 #define Z_HOMING_BOUNCE_MM 20.0f
 #define Z_HOMING_DIR -1
 
-#define LR_STEPS_PER_DEG 17.778f
-#define LR_DEGS_PER_STEP ((1.0f / LR_STEPS_PER_DEG))
+/*
+    Configuration for the left/right motors (axes A & B)
+*/
+
+#define A_RUN_CURRENT 0.2
+#define A_HOLD_CURRENT_MULTIPLIER 0.5
+#define A_STEPS_PER_DEG 17.778f
+
+#define B_RUN_CURRENT 0.2
+#define B_HOLD_CURRENT_MULTIPLIER 0.5
+#define B_STEPS_PER_DEG 17.778f

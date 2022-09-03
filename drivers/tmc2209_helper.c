@@ -1,5 +1,5 @@
 #include "drivers/tmc2209_helper.h"
-#include "config/tmc.h"
+#include "config/motion.h"
 #include "hardware/gpio.h"
 #include <stdio.h>
 
@@ -29,7 +29,7 @@ bool TMC2209_write_config(struct TMC2209* tmc, uint32_t enable_pin) {
         return false;
 
     // There's no external VREF on Candela.
-    TMC_SET_FIELD(gconf, TMC2209_GCONF_I_SCALE_ANALOG, CONFIG_TMC_EXTERNAL_VREF);
+    TMC_SET_FIELD(gconf, TMC2209_GCONF_I_SCALE_ANALOG, TMC_EXTERNAL_VREF);
     // Use PDN_UART pin for UART only
     TMC_SET_FIELD(gconf, TMC2209_GCONF_PDN_DISABLE, 1);
     // Don't use the MS pins for UART address, not microstepping setting.
@@ -37,7 +37,7 @@ bool TMC2209_write_config(struct TMC2209* tmc, uint32_t enable_pin) {
     // Use stealthChop
     TMC_SET_FIELD(gconf, TMC2209_GCONF_EN_SPREADCYCLE, 0);
     // Use external RDSon sense resistors
-    TMC_SET_FIELD(gconf, TMC2209_GCONF_INTERNAL_RSENSE, CONFIG_TMC_INTERNAL_RSENSE);
+    TMC_SET_FIELD(gconf, TMC2209_GCONF_INTERNAL_RSENSE, TMC_INTERNAL_RSENSE);
     // Use filtering on the step pin
     TMC_SET_FIELD(gconf, TMC2209_GCONF_MULTISTEP_FILT, 1);
 
@@ -56,9 +56,9 @@ bool TMC2209_write_config(struct TMC2209* tmc, uint32_t enable_pin) {
         return false;
 
     // Set up microstep resolution
-    TMC_SET_FIELD(chopconf, TMC2209_CHOPCONF_MRES, INDIRECT_LOOKUP(TMC2209_CHOPCONF_MRES, CONFIG_TMC_MICROSTEPS));
+    TMC_SET_FIELD(chopconf, TMC2209_CHOPCONF_MRES, INDIRECT_LOOKUP(TMC2209_CHOPCONF_MRES, TMC_MICROSTEPS));
     // Interpolate microsteps to 256
-    TMC_SET_FIELD(chopconf, TMC2209_CHOPCONF_INTPOL, CONFIG_TMC_INTERPOLATION);
+    TMC_SET_FIELD(chopconf, TMC2209_CHOPCONF_INTPOL, TMC_INTERPOLATION);
     // Only advance on one edge of the step pulses (datasheet 1.3.1)
     TMC_SET_FIELD(chopconf, TMC2209_CHOPCONF_DEDGE, 0);
     // Set blank time to the datasheet-recommended 1 (24 tCLK) (datasheet 7.1)
@@ -68,7 +68,7 @@ bool TMC2209_write_config(struct TMC2209* tmc, uint32_t enable_pin) {
     TMC_SET_FIELD(chopconf, TMC2209_CHOPCONF_HSTRT, 0);
     TMC_SET_FIELD(chopconf, TMC2209_CHOPCONF_HEND, 5);
     // Set Vsense
-    TMC_SET_FIELD(chopconf, TMC2209_CHOPCONF_VSENSE, CONFIG_TMC_VSENSE);
+    TMC_SET_FIELD(chopconf, TMC2209_CHOPCONF_VSENSE, TMC_VSENSE);
 
     printf("- Setting CHOPCONF to 0x%08X ...\n", chopconf);
     TMC2209_write(tmc, TMC2209_CHOPCONF, chopconf);
@@ -84,9 +84,7 @@ bool TMC2209_write_config(struct TMC2209* tmc, uint32_t enable_pin) {
     printf("- Setting TCOOLTHRS to 0x%04X ...\n", tcoolthrs);
     TMC2209_write(tmc, TMC2209_TCOOLTHRS, tcoolthrs);
 
-    TMC2209_set_current(tmc, CONFIG_TMC_RUN_CURRENT, CONFIG_TMC_RUN_CURRENT * CONFIG_TMC_HOLD_CURRENT_MULTIPLIER);
-
-    uint32_t tpowerdown = TMC2209_S_TO_TPOWERDOWN(CONFIG_TMC_HOLD_TIME);
+    uint32_t tpowerdown = TMC2209_S_TO_TPOWERDOWN(TMC_HOLD_TIME);
     float tpowerdown_s = TMC2209_TPOWERDOWN_TO_S(tpowerdown);
     printf("- Setting TPOWERDOWN to 0x%02X (%0.2f s)...\n", tpowerdown, tpowerdown_s);
     TMC2209_write(tmc, TMC2209_TPOWERDOWN, tpowerdown);
@@ -143,10 +141,10 @@ fail:
 
 bool TMC2209_set_current(struct TMC2209* tmc, float run_a, float hold_a) {
     uint32_t ihold_irun = 0;
-    uint32_t irun = TMC2209_RMS_TO_CS(CONFIG_TMC_RSENSE, CONFIG_TMC_VSENSE, run_a);
-    float irun_a = TMC2209_CS_TO_RMS(CONFIG_TMC_RSENSE, CONFIG_TMC_VSENSE, irun);
-    uint32_t ihold = TMC2209_RMS_TO_CS(CONFIG_TMC_RSENSE, CONFIG_TMC_VSENSE, hold_a);
-    float ihold_a = TMC2209_CS_TO_RMS(CONFIG_TMC_RSENSE, CONFIG_TMC_VSENSE, ihold);
+    uint32_t irun = TMC2209_RMS_TO_CS(TMC_RSENSE, TMC_VSENSE, run_a);
+    float irun_a = TMC2209_CS_TO_RMS(TMC_RSENSE, TMC_VSENSE, irun);
+    uint32_t ihold = TMC2209_RMS_TO_CS(TMC_RSENSE, TMC_VSENSE, hold_a);
+    float ihold_a = TMC2209_CS_TO_RMS(TMC_RSENSE, TMC_VSENSE, ihold);
 
     TMC_SET_FIELD(ihold_irun, TMC2209_IHOLD_IRUN_IRUN, irun);
     TMC_SET_FIELD(ihold_irun, TMC2209_IHOLD_IRUN_IHOLD, ihold);
