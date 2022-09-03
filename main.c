@@ -188,6 +188,33 @@ static void run_g_command(struct lilg_Command cmd) {
 
 static void run_m_command(struct lilg_Command cmd) {
     switch (cmd.M.real) {
+        // M17 enable steppers.
+        case 17: {
+            bool all = (!LILG_FIELD(cmd, Z).set) && (!LILG_FIELD(cmd, A).set) && (!LILG_FIELD(cmd, B).set);
+            if (all || LILG_FIELD(cmd, Z).set) {
+                gpio_put(z_motor.pin_enn, 0);
+            }
+            if (all || LILG_FIELD(cmd, A).set) {
+                gpio_put(l_motor.pin_enn, 0);
+            }
+            if (all || LILG_FIELD(cmd, B).set) {
+                gpio_put(r_motor.pin_enn, 0);
+            }
+        } break;
+
+        // M18 disable steppers.
+        case 18: {
+            bool all = (!LILG_FIELD(cmd, Z).set) && (!LILG_FIELD(cmd, A).set) && (!LILG_FIELD(cmd, B).set);
+            if (all || LILG_FIELD(cmd, Z).set) {
+                gpio_put(z_motor.pin_enn, 1);
+            }
+            if (all || LILG_FIELD(cmd, A).set) {
+                gpio_put(l_motor.pin_enn, 1);
+            }
+            if (all || LILG_FIELD(cmd, B).set) {
+                gpio_put(r_motor.pin_enn, 1);
+            }
+        } break;
 
         // M114 get current position
         // https://marlinfw.org/docs/gcode/M114.html
