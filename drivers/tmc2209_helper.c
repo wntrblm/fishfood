@@ -12,10 +12,15 @@
 
 bool TMC2209_write_config(struct TMC2209* tmc, uint32_t enable_pin) {
     enum TMC2209_read_result result;
+    uint32_t slaveconf;
     uint32_t gconf;
     uint32_t chopconf;
 
     printf("Configuring TMC2209 @ %u\n", tmc->uart_address);
+
+    TMC_SET_FIELD(slaveconf, TMC2209_SLAVECONF, 3);
+    printf("- Setting reply SENDDELAY to 0x%08x...\n", slaveconf);
+    TMC2209_write(tmc, TMC2209_SLAVECONF, slaveconf);
 
     printf("- Reading initial GCONF...\n");
 
@@ -74,8 +79,8 @@ bool TMC2209_write_config(struct TMC2209* tmc, uint32_t enable_pin) {
         return false;
     TMC2209_print_CHOPCONF(chopconf);
 
-    // Disable coolstep altogether. TODO: revisit this
-    uint32_t tcoolthrs = 0xFFFF;
+    // Disable coolstep altogether.
+    uint32_t tcoolthrs = 0xFFFFF;
     printf("- Setting TCOOLTHRS to 0x%04X ...\n", tcoolthrs);
     TMC2209_write(tmc, TMC2209_TCOOLTHRS, tcoolthrs);
 
@@ -127,6 +132,8 @@ void TMC2209_print_all(struct TMC2209* tmc) {
         goto fail;
     }
     TMC2209_print_DRVSTATUS(value);
+
+    printf("\n");
 
     return;
 
