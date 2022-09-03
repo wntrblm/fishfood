@@ -30,9 +30,14 @@ struct ZMotor {
 
     // internal stepping state
 
-    // The periodic timer used to send step pulses and update motion
-    // calculations.
-    repeating_timer_t _step_timer;
+    // Note: it takes two calls to ZMotor_step() to complete an actual motor
+    // step. This is because the first call send the falling edge and the
+    // second calls the rising edge.
+    // Time between subsequent calls to ZMotor_step()
+    int64_t _step_interval;
+    // Time when the ZMotor_step() will actually step.
+    absolute_time_t _next_step_at;
+
     // The state of the output pin, used to properly toggle the step output.
     bool _step_edge;
     // The direction the motor is going in (1 or -1).
@@ -71,3 +76,5 @@ inline void ZMotor_stop(volatile struct ZMotor* m) {
     m->_total_step_count = 0;
     m->_current_step_count = 0;
 }
+
+void ZMotor_step(volatile struct ZMotor* m);

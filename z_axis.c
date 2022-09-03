@@ -83,9 +83,6 @@ bool ZMotor_setup(struct ZMotor* m) {
         return false;
     }
 
-    printf("Starting stepper timer...\n");
-    add_repeating_timer_us(1000, step_timer_callback, (void*)(m), &(m->_step_timer));
-
     return true;
 }
 
@@ -223,7 +220,8 @@ static void setup_move(volatile struct ZMotor* m, float dest_mm) {
     m->_dir = dir;
     m->_current_step_count = 0;
     m->_total_step_count = total_step_count;
-    m->_step_timer.delay_us = 10;
+    m->_step_interval = 1000;
+    m->_next_step_at = make_timeout_time_us(m->_step_interval);
     restore_interrupts(irq_status);
 }
 
@@ -234,11 +232,14 @@ static void diag_pin_irq(uint32_t pin, uint32_t events) {
     current_motor->_crash_flag = true;
 }
 
-static bool step_timer_callback(repeating_timer_t* rt) {
-    uint32_t irq_status = save_and_disable_interrupts();
-    volatile struct ZMotor* m = (volatile struct ZMotor*)(rt->user_data);
-
+void ZMotor_step(volatile struct ZMotor* m) {
+    // Are there any steps to perform?
     if(m->_total_step_count == 0) {
+        goto exit;
+    }
+
+    // Is it time to step yet?
+    if(absolute_time_diff_us(m->_next_step_at, get_absolute_time()) > 0) {
         goto exit;
     }
 
@@ -288,12 +289,13 @@ static bool step_timer_callback(repeating_timer_t* rt) {
         }
 
         int64_t step_time_us = (int64_t)(s_per_step * 1000000.0f);
-        m->_step_timer.delay_us = step_time_us > 1000 ? 1000 : step_time_us;
+        step_time_us = step_time_us > 1000 ? 1000 : step_time_us;
+        // * 2 because each call to ZMotor_step() performs *half* of the step.
+        m->_step_interval = step_time_us * 2;
     }
 
 exit:
-    restore_interrupts(irq_status);
-    return true;
+    m->_next_step_at = make_timeout_time_us(m->_step_interval);
 }
 
 static void debug_stallguard(volatile struct ZMotor* m) {

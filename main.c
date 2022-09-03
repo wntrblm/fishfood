@@ -10,6 +10,7 @@
 #include "littleg/littleg.h"
 #include "pico/stdlib.h"
 #include "pico/bootrom.h"
+#include "pico/time.h"
 #include "rotational_axis.h"
 #include "z_axis.h"
 #include <math.h>
@@ -26,7 +27,11 @@ static struct ZMotor z_motor;
 static struct RotationalAxis l_motor;
 static struct RotationalAxis r_motor;
 
+static repeating_timer_t step_timer;
+
 static bool absolute_positioning = true;
+
+static bool step_timer_callback(repeating_timer_t* rt);
 
 int main() {
     stdio_init_all();
@@ -62,6 +67,10 @@ int main() {
     ZMotor_setup(&z_motor);
     RotationalAxis_setup(&l_motor);
     RotationalAxis_setup(&r_motor);
+
+    printf("Starting step timer...\n");
+    // 50us is 20kHz, fast enough to achieve speeds up to 200mm/s.
+    add_repeating_timer_us(-50, step_timer_callback, NULL, &step_timer);
 
     printf("Ready!\n");
     Neopixel_set_all(pixels, NUM_PIXELS, 0, 0, 255);
@@ -172,4 +181,9 @@ int main() {
     }
 
     printf("Main loop exited due to end of file on stdin\n");
+}
+
+static bool step_timer_callback(repeating_timer_t* rt) {
+    ZMotor_step(&z_motor);
+    return true;
 }
