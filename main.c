@@ -147,26 +147,38 @@ static void run_g_command(struct lilg_Command cmd) {
                 float mm_per_min = lilg_Decimal_to_float(LILG_FIELD(cmd, F));
                 z_motor.velocity_mm_s = mm_per_min / 60.0f;
             }
+
             if (cmd.Z.set) {
                 float dest_mm = lilg_Decimal_to_float(cmd.Z);
                 if (!absolute_positioning) {
                     dest_mm = ZMotor_get_position_mm(&z_motor) + dest_mm;
                 }
-                ZMotor_move_to(&z_motor, dest_mm);
+                ZMotor_start_move(&z_motor, dest_mm);
             }
             if (LILG_FIELD(cmd, A).set) {
                 float dest_deg = lilg_Decimal_to_float(LILG_FIELD(cmd, A));
                 if (!absolute_positioning) {
-                    dest_deg = l_motor.actual_deg + dest_deg;
+                    dest_deg = RotationalAxis_get_position_deg(&l_motor) + dest_deg;
                 }
-                RotationalAxis_move_to(&l_motor, dest_deg);
+                RotationalAxis_start_move(&l_motor, dest_deg);
             }
             if (LILG_FIELD(cmd, B).set) {
                 float dest_deg = lilg_Decimal_to_float(LILG_FIELD(cmd, B));
                 if (!absolute_positioning) {
-                    dest_deg = r_motor.actual_deg + dest_deg;
+                    dest_deg = RotationalAxis_get_position_deg(&r_motor) + dest_deg;
                 }
-                RotationalAxis_move_to(&r_motor, dest_deg);
+                RotationalAxis_start_move(&r_motor, dest_deg);
+            }
+
+            // Wait for all axes to finish moving.
+            if (cmd.Z.set) {
+                ZMotor_wait_for_move(&z_motor);
+            }
+            if (LILG_FIELD(cmd, A).set) {
+                RotationalAxis_wait_for_move(&l_motor);
+            }
+            if (LILG_FIELD(cmd, B).set) {
+                RotationalAxis_wait_for_move(&r_motor);
             }
         } break;
 
@@ -230,8 +242,8 @@ static void run_m_command(struct lilg_Command cmd) {
             printf(
                 "Z:%0.2f A:%0.2f B:%0.2f Count Z:%i A:%i B:%i\n",
                 ZMotor_get_position_mm(&z_motor),
-                l_motor.actual_deg,
-                r_motor.actual_deg,
+                RotationalAxis_get_position_deg(&l_motor),
+                RotationalAxis_get_position_deg(&r_motor),
                 z_motor.actual_steps,
                 l_motor.actual_steps,
                 r_motor.actual_steps);

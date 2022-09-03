@@ -64,7 +64,8 @@ void ZMotor_init(
     struct ZMotor* m, struct TMC2209* tmc, uint32_t pin_enn, uint32_t pin_dir, uint32_t pin_step, uint32_t pin_diag);
 bool ZMotor_setup(struct ZMotor* m);
 void ZMotor_home(volatile struct ZMotor* m);
-void ZMotor_move_to(volatile struct ZMotor* m, float dest_mm);
+void ZMotor_start_move(volatile struct ZMotor* m, float dest_mm);
+void ZMotor_wait_for_move(volatile struct ZMotor* m);
 float ZMotor_get_position_mm(volatile struct ZMotor* m);
 inline void ZMotor_reset_position(volatile struct ZMotor* m) {
     m->actual_steps = 0;

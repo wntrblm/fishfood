@@ -22,7 +22,6 @@ void RotationalAxis_init(
     m->pin_step = pin_step;
     m->steps_per_deg = steps_per_deg;
     m->actual_steps = 0;
-    m->actual_deg = 0.0f;
     m->_delta_steps = 0;
     m->_step_edge = 0;
 }
@@ -48,8 +47,8 @@ bool RotationalAxis_setup(struct RotationalAxis* m) {
     return true;
 }
 
-void RotationalAxis_move_to(volatile struct RotationalAxis* m, float dest_deg) {
-    float delta_deg = dest_deg - m->actual_deg;
+void RotationalAxis_start_move(volatile struct RotationalAxis* m, float dest_deg) {
+    float delta_deg = dest_deg - RotationalAxis_get_position_deg(m);
     float delta_steps = delta_deg * m->steps_per_deg;
 
     uint32_t irq_status = save_and_disable_interrupts();
@@ -59,6 +58,19 @@ void RotationalAxis_move_to(volatile struct RotationalAxis* m, float dest_deg) {
     restore_interrupts(irq_status);
 
     printf("> Moving %0.2f deg (%i steps)\n", delta_deg, m->_delta_steps);
+}
+
+
+void RotationalAxis_wait_for_move(volatile struct RotationalAxis* m) {
+    while(RotationalAxis_is_moving(m)) {
+        tight_loop_contents();
+    }
+
+    printf("> Move finished at %0.3f (%i steps).\n", RotationalAxis_get_position_deg(m), m->actual_steps);
+}
+
+float RotationalAxis_get_position_deg(volatile struct RotationalAxis* m) {
+    return ((float)(m->actual_steps)) * (1.0f / m->steps_per_deg);
 }
 
 /*
@@ -82,11 +94,9 @@ void RotationalAxis_step(volatile struct RotationalAxis* m) {
         if (m->_delta_steps > 0) {
             m->_delta_steps--;
             m->actual_steps++;
-            m->actual_deg += 1.0f / m->steps_per_deg;
         } else {
             m->_delta_steps++;
             m->actual_steps--;
-            m->actual_deg -= 1.0f / m->steps_per_deg;
         }
     }
 

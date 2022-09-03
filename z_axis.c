@@ -153,11 +153,13 @@ void ZMotor_home(volatile struct ZMotor* m) {
     printf("> Homing complete!\n");
 }
 
-void ZMotor_move_to(volatile struct ZMotor* m, float dest_mm) {
+void ZMotor_start_move(volatile struct ZMotor* m, float dest_mm) {
     setup_move(m, dest_mm);
+}
 
-    // Wait for the move to complete.
-    while(m->_total_step_count != 0) {
+
+void ZMotor_wait_for_move(volatile struct ZMotor* m) {
+    while(ZMotor_is_moving(m)) {
         tight_loop_contents();
     }
 
