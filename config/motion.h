@@ -20,18 +20,17 @@
 #define TMC_INTERPOLATION 1
 // How long after stopping the motor before it lowers to hold
 // current, can be between 0 and 5.6s.
-#define TMC_HOLD_TIME 3.0
+#define TMC_HOLD_TIME 3.0f
 
 /*
     Configuration for the Z axis
 */
 
-#define Z_RUN_CURRENT 0.5
-#define Z_HOLD_CURRENT_MULTIPLIER 0.8
+#define Z_RUN_CURRENT 0.5f
+#define Z_HOLD_CURRENT_MULTIPLIER 0.8f
 #define Z_DEFAULT_VELOCITY_MM_S 150.0f
 #define Z_DEFAULT_ACCELERATION_MM_S2 3000.0f
-#define Z_STEPS_PER_MM 160
-#define Z_MM_PER_STEP ((1.0f / Z_STEPS_PER_MM))
+#define Z_STEPS_PER_MM 160.0f
 // Sensorless homing stall detection threshold
 // 0 to 255, higher is more sensitive
 #define Z_HOMING_SENSITIVITY 50
@@ -45,10 +44,10 @@
     Configuration for the left/right motors (axes A & B)
 */
 
-#define A_RUN_CURRENT 0.2
-#define A_HOLD_CURRENT_MULTIPLIER 0.5
+#define A_RUN_CURRENT 0.2f
+#define A_HOLD_CURRENT_MULTIPLIER 0.5f
 #define A_STEPS_PER_DEG 17.778f
 
-#define B_RUN_CURRENT 0.2
-#define B_HOLD_CURRENT_MULTIPLIER 0.5
+#define B_RUN_CURRENT 0.2f
+#define B_HOLD_CURRENT_MULTIPLIER 0.5f
 #define B_STEPS_PER_DEG 17.778f

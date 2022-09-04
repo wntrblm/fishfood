@@ -6,7 +6,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-struct ZMotor {
+struct LinearAxis {
+    char name;
+
     // hardware configuration
     struct TMC2209* tmc;
     uint32_t pin_enn;
@@ -15,11 +17,22 @@ struct ZMotor {
     uint32_t pin_diag;
 
     // Motion configuration. These members can be changed directly.
+    float steps_per_mm;
 
     // Maximum velocity in mm/s
     float velocity_mm_s;
     // Constant acceleration in mm/s^2
     float acceleration_mm_s2;
+
+    // Which direction to home, either -1 for backwards or +1 for forwards.
+    int8_t homing_direction;
+    // How far to try to move during homing.
+    float homing_distance_mm;
+    // How far to move back before re-homing.
+    float homing_bounce_mm;
+    // Homing velocity and acceleration
+    float homing_velocity_mm_s;
+    float homing_acceleration_mm_s2;
     // Homing sensitivity, used to set the TMC2209's stallguard threshold.
     // Higher = more sensitive.
     uint8_t homing_sensitivity;
@@ -30,12 +43,12 @@ struct ZMotor {
 
     // internal stepping state
 
-    // Note: it takes two calls to ZMotor_step() to complete an actual motor
+    // Note: it takes two calls to LinearAxis_step() to complete an actual motor
     // step. This is because the first call send the falling edge and the
     // second calls the rising edge.
-    // Time between subsequent calls to ZMotor_step()
+    // Time between subsequent calls to LinearAxis_step()
     int64_t _step_interval;
-    // Time when the ZMotor_step() will actually step.
+    // Time when the LinearAxis_step() will actually step.
     absolute_time_t _next_step_at;
 
     // The state of the output pin, used to properly toggle the step output.
@@ -60,22 +73,22 @@ struct ZMotor {
     int8_t _crash_flag;
 };
 
-void ZMotor_init(
-    struct ZMotor* m, struct TMC2209* tmc, uint32_t pin_enn, uint32_t pin_dir, uint32_t pin_step, uint32_t pin_diag);
-bool ZMotor_setup(struct ZMotor* m);
-void ZMotor_home(volatile struct ZMotor* m);
-void ZMotor_start_move(volatile struct ZMotor* m, float dest_mm);
-void ZMotor_wait_for_move(volatile struct ZMotor* m);
-float ZMotor_get_position_mm(volatile struct ZMotor* m);
-inline void ZMotor_reset_position(volatile struct ZMotor* m) {
+void LinearAxis_init(
+    struct LinearAxis* m, char name, struct TMC2209* tmc, uint32_t pin_enn, uint32_t pin_dir, uint32_t pin_step, uint32_t pin_diag);
+bool LinearAxis_setup(struct LinearAxis* m);
+void LinearAxis_home(volatile struct LinearAxis* m);
+void LinearAxis_start_move(volatile struct LinearAxis* m, float dest_mm);
+void LinearAxis_wait_for_move(volatile struct LinearAxis* m);
+float LinearAxis_get_position_mm(volatile struct LinearAxis* m);
+inline void LinearAxis_reset_position(volatile struct LinearAxis* m) {
     m->actual_steps = 0;
     m->_total_step_count = 0;
     m->_current_step_count = 0;
 }
-inline bool ZMotor_is_moving(volatile struct ZMotor* m) { return m->_total_step_count != 0; }
-inline void ZMotor_stop(volatile struct ZMotor* m) {
+inline bool LinearAxis_is_moving(volatile struct LinearAxis* m) { return m->_total_step_count != 0; }
+inline void LinearAxis_stop(volatile struct LinearAxis* m) {
     m->_total_step_count = 0;
     m->_current_step_count = 0;
 }
 
-void ZMotor_step(volatile struct ZMotor* m);
+void LinearAxis_step(volatile struct LinearAxis* m);

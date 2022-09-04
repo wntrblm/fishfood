@@ -13,7 +13,7 @@ add_compile_definitions(PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64)
 
 add_executable(picostep
   main.c
-  z_axis.c
+  linear_axis.c
   rotational_axis.c
   drivers/tmc2209.c
   drivers/tmc2209_helper.c

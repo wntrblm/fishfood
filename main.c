@@ -12,7 +12,7 @@
 #include "pico/stdlib.h"
 #include "pico/time.h"
 #include "rotational_axis.h"
-#include "z_axis.h"
+#include "linear_axis.h"
 #include <math.h>
 #include <stdio.h>
 
@@ -23,7 +23,7 @@ static struct TMC2209 tmc_left;
 static struct TMC2209 tmc_right;
 static struct TMC2209 tmc_z;
 
-static struct ZMotor z_motor;
+static struct LinearAxis z_motor;
 static struct RotationalAxis l_motor;
 static struct RotationalAxis r_motor;
 
@@ -51,9 +51,22 @@ int main() {
     TMC2209_init(&tmc_left, uart0, 0, tmc_uart_read_write);
     TMC2209_init(&tmc_right, uart0, 3, tmc_uart_read_write);
 
-    ZMotor_init(&z_motor, &tmc_z, PIN_M1_EN, PIN_M1_DIR, PIN_M1_STEP, PIN_M1_DIAG);
-    RotationalAxis_init('A', &l_motor, &tmc_left, PIN_M0_EN, PIN_M0_DIR, PIN_M0_STEP, A_STEPS_PER_DEG);
-    RotationalAxis_init('B', &r_motor, &tmc_right, PIN_M2_EN, PIN_M2_DIR, PIN_M2_STEP, A_STEPS_PER_DEG);
+    LinearAxis_init(&z_motor, 'Z', &tmc_z, PIN_M1_EN, PIN_M1_DIR, PIN_M1_STEP, PIN_M1_DIAG);
+    z_motor.steps_per_mm = Z_STEPS_PER_MM;
+    z_motor.velocity_mm_s = Z_DEFAULT_VELOCITY_MM_S;
+    z_motor.acceleration_mm_s2 = Z_DEFAULT_ACCELERATION_MM_S2;
+    z_motor.homing_direction = Z_HOMING_DIR;
+    z_motor.homing_distance_mm = Z_HOMING_DISTANCE_MM;
+    z_motor.homing_bounce_mm = Z_HOMING_BOUNCE_MM;
+    z_motor.homing_velocity_mm_s = Z_HOMING_VELOCITY_MM_S;
+    z_motor.homing_acceleration_mm_s2 = Z_HOMING_ACCELERATION_MM_S2;
+    z_motor.homing_sensitivity = Z_HOMING_SENSITIVITY;
+
+    RotationalAxis_init(&l_motor, 'A', &tmc_left, PIN_M0_EN, PIN_M0_DIR, PIN_M0_STEP);
+    l_motor.steps_per_deg = A_STEPS_PER_DEG;
+
+    RotationalAxis_init(&r_motor, 'B', &tmc_right, PIN_M2_EN, PIN_M2_DIR, PIN_M2_STEP);
+    r_motor.steps_per_deg = B_STEPS_PER_DEG;
 
     Neopixel_set_all(pixels, NUM_PIXELS, 0, 255, 0);
     Neopixel_write(pixels, NUM_PIXELS);
@@ -67,7 +80,7 @@ int main() {
     gpio_set_function(PIN_UART_RX, GPIO_FUNC_UART);
 
     printf("Starting motors...\n");
-    ZMotor_setup(&z_motor);
+    LinearAxis_setup(&z_motor);
     RotationalAxis_setup(&l_motor);
     RotationalAxis_setup(&r_motor);
 
@@ -99,7 +112,7 @@ int main() {
 }
 
 static bool step_timer_callback(repeating_timer_t* rt) {
-    ZMotor_step(&z_motor);
+    LinearAxis_step(&z_motor);
     RotationalAxis_step(&l_motor);
     RotationalAxis_step(&r_motor);
     return true;
@@ -151,9 +164,9 @@ static void run_g_command(struct lilg_Command cmd) {
             if (cmd.Z.set) {
                 float dest_mm = lilg_Decimal_to_float(cmd.Z);
                 if (!absolute_positioning) {
-                    dest_mm = ZMotor_get_position_mm(&z_motor) + dest_mm;
+                    dest_mm = LinearAxis_get_position_mm(&z_motor) + dest_mm;
                 }
-                ZMotor_start_move(&z_motor, dest_mm);
+                LinearAxis_start_move(&z_motor, dest_mm);
             }
             if (LILG_FIELD(cmd, A).set) {
                 float dest_deg = lilg_Decimal_to_float(LILG_FIELD(cmd, A));
@@ -172,7 +185,7 @@ static void run_g_command(struct lilg_Command cmd) {
 
             // Wait for all axes to finish moving.
             if (cmd.Z.set) {
-                ZMotor_wait_for_move(&z_motor);
+                LinearAxis_wait_for_move(&z_motor);
             }
             if (LILG_FIELD(cmd, A).set) {
                 RotationalAxis_wait_for_move(&l_motor);
@@ -185,7 +198,7 @@ static void run_g_command(struct lilg_Command cmd) {
         // Home axes
         // https://marlinfw.org/docs/gcode/G28.html
         case 28: {
-            ZMotor_home(&z_motor);
+            LinearAxis_home(&z_motor);
         } break;
 
         // Absolute positioning
@@ -241,7 +254,7 @@ static void run_m_command(struct lilg_Command cmd) {
         case 114: {
             printf(
                 "Z:%0.2f A:%0.2f B:%0.2f Count Z:%i A:%i B:%i\n",
-                ZMotor_get_position_mm(&z_motor),
+                LinearAxis_get_position_mm(&z_motor),
                 RotationalAxis_get_position_deg(&l_motor),
                 RotationalAxis_get_position_deg(&r_motor),
                 z_motor.actual_steps,

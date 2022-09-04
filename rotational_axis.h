@@ -27,13 +27,12 @@ struct RotationalAxis {
 };
 
 void RotationalAxis_init(
-    char name,
     struct RotationalAxis* m,
+    char name,
     struct TMC2209* tmc,
     uint32_t pin_enn,
     uint32_t pin_dir,
-    uint32_t pin_step,
-    float steps_per_deg);
+    uint32_t pin_step);
 bool RotationalAxis_setup(struct RotationalAxis* m);
 void RotationalAxis_start_move(volatile struct RotationalAxis* m, float dest_deg);
 void RotationalAxis_wait_for_move(volatile struct RotationalAxis* m);

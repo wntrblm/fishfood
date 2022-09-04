@@ -10,19 +10,17 @@
     Public methods
 */
 void RotationalAxis_init(
-    char name,
     struct RotationalAxis* m,
+    char name,
     struct TMC2209* tmc,
     uint32_t pin_enn,
     uint32_t pin_dir,
-    uint32_t pin_step,
-    float steps_per_deg) {
+    uint32_t pin_step) {
     m->name = name;
     m->tmc = tmc;
     m->pin_enn = pin_enn;
     m->pin_dir = pin_dir;
     m->pin_step = pin_step;
-    m->steps_per_deg = steps_per_deg;
     m->actual_steps = 0;
     m->_delta_steps = 0;
     m->_step_edge = 0;
@@ -42,7 +40,7 @@ bool RotationalAxis_setup(struct RotationalAxis* m) {
     gpio_put(m->pin_step, false);
 
     if (!TMC2209_write_config(m->tmc, m->pin_enn)) {
-        printf("Error configuring %c axis TMC2209!\n", m->name);
+        printf("Error configuring TMC2209 for %c axis!\n", m->name);
         return false;
     }
 
@@ -70,7 +68,7 @@ void RotationalAxis_wait_for_move(volatile struct RotationalAxis* m) {
         tight_loop_contents();
     }
 
-    printf("> %c axis move finished at %0.3f (%i steps).\n", m->name, RotationalAxis_get_position_deg(m), m->actual_steps);
+    printf("> %c axis moved to %0.3f (%i steps).\n", m->name, RotationalAxis_get_position_deg(m), m->actual_steps);
 }
 
 float RotationalAxis_get_position_deg(volatile struct RotationalAxis* m) {
