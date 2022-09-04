@@ -7,6 +7,8 @@
 #include <stdint.h>
 
 struct RotationalAxis {
+    char name;
+
     struct TMC2209* tmc;
     uint32_t pin_enn;
     uint32_t pin_dir;
@@ -25,6 +27,7 @@ struct RotationalAxis {
 };
 
 void RotationalAxis_init(
+    char name,
     struct RotationalAxis* m,
     struct TMC2209* tmc,
     uint32_t pin_enn,

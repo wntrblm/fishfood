@@ -52,8 +52,8 @@ int main() {
     TMC2209_init(&tmc_right, uart0, 3, tmc_uart_read_write);
 
     ZMotor_init(&z_motor, &tmc_z, PIN_M1_EN, PIN_M1_DIR, PIN_M1_STEP, PIN_M1_DIAG);
-    RotationalAxis_init(&l_motor, &tmc_left, PIN_M0_EN, PIN_M0_DIR, PIN_M0_STEP, A_STEPS_PER_DEG);
-    RotationalAxis_init(&r_motor, &tmc_right, PIN_M2_EN, PIN_M2_DIR, PIN_M2_STEP, A_STEPS_PER_DEG);
+    RotationalAxis_init('A', &l_motor, &tmc_left, PIN_M0_EN, PIN_M0_DIR, PIN_M0_STEP, A_STEPS_PER_DEG);
+    RotationalAxis_init('B', &r_motor, &tmc_right, PIN_M2_EN, PIN_M2_DIR, PIN_M2_STEP, A_STEPS_PER_DEG);
 
     Neopixel_set_all(pixels, NUM_PIXELS, 0, 255, 0);
     Neopixel_write(pixels, NUM_PIXELS);

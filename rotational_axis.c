@@ -10,12 +10,14 @@
     Public methods
 */
 void RotationalAxis_init(
+    char name,
     struct RotationalAxis* m,
     struct TMC2209* tmc,
     uint32_t pin_enn,
     uint32_t pin_dir,
     uint32_t pin_step,
     float steps_per_deg) {
+    m->name = name;
     m->tmc = tmc;
     m->pin_enn = pin_enn;
     m->pin_dir = pin_dir;
@@ -40,7 +42,7 @@ bool RotationalAxis_setup(struct RotationalAxis* m) {
     gpio_put(m->pin_step, false);
 
     if (!TMC2209_write_config(m->tmc, m->pin_enn)) {
-        printf("Error configuring rotation motor TMC2209!\n");
+        printf("Error configuring %c axis TMC2209!\n", m->name);
         return false;
     }
 
@@ -49,15 +51,17 @@ bool RotationalAxis_setup(struct RotationalAxis* m) {
 
 void RotationalAxis_start_move(volatile struct RotationalAxis* m, float dest_deg) {
     float delta_deg = dest_deg - RotationalAxis_get_position_deg(m);
-    float delta_steps = delta_deg * m->steps_per_deg;
+    int32_t delta_steps = (int32_t)(roundf(delta_deg * m->steps_per_deg));
+    float actual_delta_deg = delta_steps * (1.0f / m->steps_per_deg);
+
 
     uint32_t irq_status = save_and_disable_interrupts();
-    m->_delta_steps = (int32_t)(roundf(delta_steps));
+    m->_delta_steps = delta_steps;
     m->_step_interval = 1000;
     m->_next_step_at = make_timeout_time_us(m->_step_interval);
     restore_interrupts(irq_status);
 
-    printf("> Moving %0.2f deg (%i steps)\n", delta_deg, m->_delta_steps);
+    printf("> Moving %c axis %0.2f deg (%i steps)\n", m->name, actual_delta_deg, m->_delta_steps);
 }
 
 
@@ -66,7 +70,7 @@ void RotationalAxis_wait_for_move(volatile struct RotationalAxis* m) {
         tight_loop_contents();
     }
 
-    printf("> Move finished at %0.3f (%i steps).\n", RotationalAxis_get_position_deg(m), m->actual_steps);
+    printf("> %c axis move finished at %0.3f (%i steps).\n", m->name, RotationalAxis_get_position_deg(m), m->actual_steps);
 }
 
 float RotationalAxis_get_position_deg(volatile struct RotationalAxis* m) {
