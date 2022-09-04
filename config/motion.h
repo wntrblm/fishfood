@@ -26,8 +26,12 @@
     Configuration for the Z axis
 */
 
-#define Z_RUN_CURRENT 0.5f
-#define Z_HOLD_CURRENT_MULTIPLIER 0.8f
+// Based on testing with my own Z-Axis motor, 0.7A is a good balance between
+// heat dissipated and hold torque. It's important that the Z axis' hold torque
+// is high enough to not lose steps when the spring-loaded tip of the nozzle
+// is compressed.
+#define Z_RUN_CURRENT 0.7f
+#define Z_HOLD_CURRENT_MULTIPLIER 1.f
 #define Z_DEFAULT_VELOCITY_MM_S 150.0f
 #define Z_DEFAULT_ACCELERATION_MM_S2 3000.0f
 #define Z_STEPS_PER_MM 160.0f
