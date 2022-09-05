@@ -37,13 +37,13 @@
 // is compressed.
 #define Z_RUN_CURRENT 0.7f
 #define Z_HOLD_CURRENT_MULTIPLIER 0.8f
-#define Z_DEFAULT_VELOCITY_MM_S 300.0f
+#define Z_DEFAULT_VELOCITY_MM_S 150.0f
 #define Z_DEFAULT_ACCELERATION_MM_S2 8000.0f
 #define Z_STEPS_PER_MM 160.0f
 // Sensorless homing stall detection threshold
 // 0 to 255, higher is more sensitive
 #define Z_HOMING_SENSITIVITY 100
-#define Z_HOMING_VELOCITY_MM_S 300.0f
+#define Z_HOMING_VELOCITY_MM_S 150.0f
 #define Z_HOMING_ACCELERATION_MM_S2 20000.0f
 #define Z_HOMING_DISTANCE_MM 100.0f
 #define Z_HOMING_BOUNCE_MM 20.0f

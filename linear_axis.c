@@ -307,11 +307,14 @@ void LinearAxis_step(volatile struct LinearAxis* m) {
 
         int64_t step_time_us = (int64_t)(s_per_step * 1000000.0f);
         step_time_us = step_time_us > 5000 ? 5000 : step_time_us;
-        // TODO: this is probably wrong because each call to LinearAxis_step() performs *half* of the step.
         m->_step_interval = step_time_us;
     }
 
-    m->_next_step_at = make_timeout_time_us(m->_step_interval);
+    // The step interval is halved because it takes *two* calls to this method
+    // to output a single step- the first call pulls the STEP pin low and the
+    // second pulls it high. Steps occur only on the rising edge of the STEP
+    // pin.
+    m->_next_step_at = make_timeout_time_us(m->_step_interval / 2);
 }
 
 static void debug_stallguard(volatile struct LinearAxis* m) {
