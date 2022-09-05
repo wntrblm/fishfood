@@ -95,25 +95,31 @@ bool LinearAxis_setup(struct LinearAxis* m) {
 
 void LinearAxis_home(volatile struct LinearAxis* m) {
     printf("> Homing %c axis...\n", m->name);
+    printf("> Stallguard is %u\n", m->homing_sensitivity);
 
     float old_velocity = m->velocity_mm_s;
     float old_acceleration = m->acceleration_mm_s2;
     m->velocity_mm_s = m->homing_velocity_mm_s;
     m->acceleration_mm_s2 = m->homing_acceleration_mm_s2;
 
-    printf("> Enabling stallguard with threshold at %u\n", m->homing_sensitivity);
-    TMC2209_write(m->tmc, TMC2209_SGTHRS, m->homing_sensitivity);
-
     printf("> Seeking endstop...\n");
 
     current_motor = m;
-    m->_crash_flag = false;
     m->actual_steps = 0;
+
     // TODO: At some point this needs to use a more sophisticated GPIO IRQ,
     // since the built-in picosdk only provides *one* callback for *all* gpio
     // events.
     gpio_set_irq_enabled_with_callback(m->pin_diag, GPIO_IRQ_EDGE_RISE, true, &diag_pin_irq);
     setup_move(m, m->homing_direction * m->homing_distance_mm);
+
+    // Ignore stallguard output until it's up to speed
+    while (m->_current_step_count < m->_accel_step_count) {
+        tight_loop_contents();
+    }
+
+    TMC2209_write(m->tmc, TMC2209_SGTHRS, m->homing_sensitivity);
+    m->_crash_flag = false;
 
     while (!m->_crash_flag) {
         tight_loop_contents();
@@ -134,8 +140,9 @@ void LinearAxis_home(volatile struct LinearAxis* m) {
     printf("> Re-seeking...\n");
     setup_move(m, m->homing_direction * m->homing_bounce_mm * 2);
 
-    // Ignore stallguard output until it's had some time to move.
-    sleep_ms(30);
+    while (m->_current_step_count < m->_accel_step_count) {
+        tight_loop_contents();
+    }
 
     TMC2209_write(m->tmc, TMC2209_SGTHRS, m->homing_sensitivity);
     m->_crash_flag = false;
@@ -218,6 +225,8 @@ static void setup_move(volatile struct LinearAxis* m, float dest_mm) {
     // stepping resolution.
     float actual_delta_mm = dir * total_step_count * (1.0f / m->steps_per_mm);
     printf("> Moving %c axis %0.3f mm (%i steps)\n", m->name, actual_delta_mm, dir * total_step_count);
+    printf("> Velocity: %0.2f mm/2, acceleration: %0.2f mm/2^2\n", m->velocity_mm_s, m->acceleration_mm_s2);
+    printf("> Steps per phase: %ld, %ld, %ld\n", accel_step_count, coast_step_count, decel_step_count);
 
     // Update motor parameters and kickoff step timer. Disable interrupts to prevent
     // any wackiness.
@@ -243,12 +252,12 @@ static void diag_pin_irq(uint32_t pin, uint32_t events) {
 void LinearAxis_step(volatile struct LinearAxis* m) {
     // Are there any steps to perform?
     if (m->_total_step_count == 0) {
-        goto exit;
+        return;
     }
 
     // Is it time to step yet?
-    if (absolute_time_diff_us(get_absolute_time(), m->_next_step_at) < 0) {
-        goto exit;
+    if (absolute_time_diff_us(get_absolute_time(), m->_next_step_at) > 0) {
+        return;
     }
 
     gpio_put(m->pin_dir, m->_dir == 1 ? 0 : 1);
@@ -265,7 +274,7 @@ void LinearAxis_step(volatile struct LinearAxis* m) {
         if (m->_current_step_count == m->_total_step_count) {
             m->_current_step_count = 0;
             m->_total_step_count = 0;
-            goto exit;
+            return;
         }
 
         // Calculate instantenous velocity at the current
@@ -297,13 +306,11 @@ void LinearAxis_step(volatile struct LinearAxis* m) {
         }
 
         int64_t step_time_us = (int64_t)(s_per_step * 1000000.0f);
-        step_time_us = step_time_us > 2000 ? 2000 : step_time_us;
-        step_time_us = step_time_us < 25 ? 25 : step_time_us;
+        step_time_us = step_time_us > 5000 ? 5000 : step_time_us;
         // TODO: this is probably wrong because each call to LinearAxis_step() performs *half* of the step.
-        m->_step_interval = step_time_us * 2;
+        m->_step_interval = step_time_us;
     }
 
-exit:
     m->_next_step_at = make_timeout_time_us(m->_step_interval);
 }
 

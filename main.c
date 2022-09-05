@@ -31,7 +31,7 @@ static repeating_timer_t step_timer;
 
 static bool absolute_positioning = true;
 
-static bool step_timer_callback(repeating_timer_t* rt);
+static int64_t step_timer_callback(alarm_id_t id, void *user_data);
 static void process_incoming_char(char c);
 static void run_g_command(struct lilg_Command cmd);
 static void run_m_command(struct lilg_Command cmd);
@@ -95,8 +95,9 @@ int main() {
 
     printf("Starting step timer...\n");
     uint32_t irq_status = save_and_disable_interrupts();
-    // 25us is 100kHz, fast enough to achieve speeds up to 400mm/s.
-    add_repeating_timer_us(25, step_timer_callback, NULL, &step_timer);
+    alarm_pool_t* alarm_pool = alarm_pool_get_default();
+    alarm_pool_add_alarm_at(
+        alarm_pool, make_timeout_time_us(1000), step_timer_callback, NULL, true);
     restore_interrupts(irq_status);
 
     printf("Ready!\n");
@@ -115,11 +116,11 @@ int main() {
     printf("Main loop exited due to end of file on stdin\n");
 }
 
-static bool step_timer_callback(repeating_timer_t* rt) {
+static int64_t step_timer_callback(alarm_id_t id, void *user_data) {
     LinearAxis_step(&z_motor);
-    RotationalAxis_step(&l_motor);
-    RotationalAxis_step(&r_motor);
-    return true;
+    // RotationalAxis_step(&l_motor);
+    // RotationalAxis_step(&r_motor);
+    return STEP_INTERVAL_US;
 }
 
 static void process_incoming_char(char c) {
@@ -296,7 +297,7 @@ static void run_m_command(struct lilg_Command cmd) {
         case 204: {
             float accel = lilg_Decimal_to_float(LILG_FIELD(cmd, T));
             z_motor.acceleration_mm_s2 = accel;
-            printf("> Set acceleration to %0.2f mm/s^2\n", accel);
+            printf("> Set acceleration to %0.2f mm/s^2\n", z_motor.acceleration_mm_s2);
         } break;
 
         // M906 Set motor current
