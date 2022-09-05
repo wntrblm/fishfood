@@ -55,7 +55,7 @@ void RotationalAxis_start_move(volatile struct RotationalAxis* m, float dest_deg
 
     uint32_t irq_status = save_and_disable_interrupts();
     m->_delta_steps = delta_steps;
-    m->_step_interval = 1000;
+    m->_step_interval = 100;
     m->_next_step_at = make_timeout_time_us(m->_step_interval);
     restore_interrupts(irq_status);
 
@@ -81,11 +81,11 @@ float RotationalAxis_get_position_deg(volatile struct RotationalAxis* m) {
 
 void RotationalAxis_step(volatile struct RotationalAxis* m) {
     if (m->_delta_steps == 0) {
-        goto exit;
+        return;
     }
 
-    if(absolute_time_diff_us(m->_next_step_at, get_absolute_time()) > 0) {
-        goto exit;
+    if(absolute_time_diff_us(get_absolute_time(), m->_next_step_at) > 0) {
+        return;
     }
 
     gpio_put(m->pin_dir, m->_delta_steps >= 0 ? 0 : 1);
@@ -102,6 +102,5 @@ void RotationalAxis_step(volatile struct RotationalAxis* m) {
         }
     }
 
-exit:
     m->_next_step_at = make_timeout_time_us(m->_step_interval);
 }

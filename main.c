@@ -118,8 +118,8 @@ int main() {
 
 static int64_t step_timer_callback(alarm_id_t id, void *user_data) {
     LinearAxis_step(&z_motor);
-    // RotationalAxis_step(&l_motor);
-    // RotationalAxis_step(&r_motor);
+    RotationalAxis_step(&l_motor);
+    RotationalAxis_step(&r_motor);
     return STEP_INTERVAL_US;
 }
 
