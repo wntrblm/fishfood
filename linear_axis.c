@@ -35,7 +35,13 @@ static void debug_stallguard(volatile struct LinearAxis* m);
 */
 
 void LinearAxis_init(
-    struct LinearAxis* m, char name, struct TMC2209* tmc, uint32_t pin_enn, uint32_t pin_dir, uint32_t pin_step, uint32_t pin_diag) {
+    struct LinearAxis* m,
+    char name,
+    struct TMC2209* tmc,
+    uint32_t pin_enn,
+    uint32_t pin_dir,
+    uint32_t pin_step,
+    uint32_t pin_diag) {
     m->name = name;
 
     m->tmc = tmc;
@@ -123,9 +129,7 @@ void LinearAxis_home(volatile struct LinearAxis* m) {
     LinearAxis_reset_position(m);
     setup_move(current_motor, -(m->homing_direction * m->homing_bounce_mm));
 
-    while (LinearAxis_is_moving(m)) {
-        tight_loop_contents();
-    }
+    while (LinearAxis_is_moving(m)) { tight_loop_contents(); }
 
     printf("> Re-seeking...\n");
     setup_move(m, m->homing_direction * m->homing_bounce_mm * 2);
@@ -155,19 +159,13 @@ void LinearAxis_home(volatile struct LinearAxis* m) {
     printf("> %c axis homing complete!\n", m->name);
 }
 
-void LinearAxis_start_move(volatile struct LinearAxis* m, float dest_mm) {
-    setup_move(m, dest_mm);
-}
-
+void LinearAxis_start_move(volatile struct LinearAxis* m, float dest_mm) { setup_move(m, dest_mm); }
 
 void LinearAxis_wait_for_move(volatile struct LinearAxis* m) {
-    while(LinearAxis_is_moving(m)) {
-        tight_loop_contents();
-    }
+    while (LinearAxis_is_moving(m)) { tight_loop_contents(); }
 
-    printf("> %c axis moved to %0.3f (%i steps).\n", LinearAxis_get_position_mm(m), m->actual_steps);
+    printf("> %c axis moved to %0.3f (%i steps).\n", m->name, LinearAxis_get_position_mm(m), m->actual_steps);
 }
-
 
 float LinearAxis_get_position_mm(volatile struct LinearAxis* m) {
     return (float)(m->actual_steps) * (1.0f / m->steps_per_mm);
@@ -198,7 +196,7 @@ static void setup_move(volatile struct LinearAxis* m, float dest_mm) {
     // Check for the case where a move is too short to reach full velocity
     // and therefore has no coasting phase. In this case, the acceleration
     // and deceleration phases will each occupy one half of the total steps.
-    if(coast_step_count <= 0) {
+    if (coast_step_count <= 0) {
         accel_step_count = total_step_count / 2;
         // Note: use subtraction here instead of just setting it the same
         // as the acceleration step count. This accommodates odd amounts of
@@ -229,7 +227,7 @@ static void setup_move(volatile struct LinearAxis* m, float dest_mm) {
 }
 
 static void diag_pin_irq(uint32_t pin, uint32_t events) {
-    if(current_motor == NULL) {
+    if (current_motor == NULL) {
         return;
     }
     current_motor->_crash_flag = true;
@@ -237,12 +235,12 @@ static void diag_pin_irq(uint32_t pin, uint32_t events) {
 
 void LinearAxis_step(volatile struct LinearAxis* m) {
     // Are there any steps to perform?
-    if(m->_total_step_count == 0) {
+    if (m->_total_step_count == 0) {
         goto exit;
     }
 
     // Is it time to step yet?
-    if(absolute_time_diff_us(m->_next_step_at, get_absolute_time()) > 0) {
+    if (absolute_time_diff_us(m->_next_step_at, get_absolute_time()) > 0) {
         goto exit;
     }
 
@@ -257,7 +255,7 @@ void LinearAxis_step(volatile struct LinearAxis* m) {
         m->actual_steps += m->_dir;
 
         // Is the move finished?
-        if(m->_current_step_count == m->_total_step_count) {
+        if (m->_current_step_count == m->_total_step_count) {
             m->_current_step_count = 0;
             m->_total_step_count = 0;
             goto exit;
@@ -269,11 +267,11 @@ void LinearAxis_step(volatile struct LinearAxis* m) {
         float inst_velocity;
 
         // Acceleration phase
-        if(m->_current_step_count < m->_accel_step_count) {
+        if (m->_current_step_count < m->_accel_step_count) {
             inst_velocity = sqrtf(2.0f * distance * m->acceleration_mm_s2);
         }
         // Coast phase
-        else if(m->_current_step_count < m->_accel_step_count + m->_coast_step_count){
+        else if (m->_current_step_count < m->_accel_step_count + m->_coast_step_count) {
             inst_velocity = m->velocity_mm_s;
         }
         // Deceleration phase
@@ -284,7 +282,7 @@ void LinearAxis_step(volatile struct LinearAxis* m) {
 
         // Calculate the timer period from the velocity
         float s_per_step;
-        if(inst_velocity > 0.0f) {
+        if (inst_velocity > 0.0f) {
             float steps_per_s = inst_velocity / (1.0f / m->steps_per_mm);
             s_per_step = 1.0f / steps_per_s;
         } else {
