@@ -135,7 +135,7 @@ void LinearAxis_home(volatile struct LinearAxis* m) {
     setup_move(m, m->homing_direction * m->homing_bounce_mm * 2);
 
     // Ignore stallguard output until it's had some time to move.
-    sleep_ms(2);
+    sleep_ms(30);
 
     TMC2209_write(m->tmc, TMC2209_SGTHRS, m->homing_sensitivity);
     m->_crash_flag = false;
@@ -162,7 +162,14 @@ void LinearAxis_home(volatile struct LinearAxis* m) {
 void LinearAxis_start_move(volatile struct LinearAxis* m, float dest_mm) { setup_move(m, dest_mm); }
 
 void LinearAxis_wait_for_move(volatile struct LinearAxis* m) {
-    while (LinearAxis_is_moving(m)) { tight_loop_contents(); }
+    absolute_time_t report_time = make_timeout_time_ms(1000);
+    while (LinearAxis_is_moving(m)) {
+        if(absolute_time_diff_us(get_absolute_time(), report_time) <= 0) {
+            printf("> Still moving, report_at=%lld, step interval=%lld next step at=%lld, steps taken=%d\n", report_time, m->_step_interval, m->_next_step_at, m->_current_step_count);
+            report_time = make_timeout_time_ms(1000);
+        }
+        tight_loop_contents();
+    }
 
     printf("> %c axis moved to %0.3f (%i steps).\n", m->name, LinearAxis_get_position_mm(m), m->actual_steps);
 }
@@ -240,7 +247,7 @@ void LinearAxis_step(volatile struct LinearAxis* m) {
     }
 
     // Is it time to step yet?
-    if (absolute_time_diff_us(m->_next_step_at, get_absolute_time()) > 0) {
+    if (absolute_time_diff_us(get_absolute_time(), m->_next_step_at) < 0) {
         goto exit;
     }
 
@@ -290,8 +297,9 @@ void LinearAxis_step(volatile struct LinearAxis* m) {
         }
 
         int64_t step_time_us = (int64_t)(s_per_step * 1000000.0f);
-        step_time_us = step_time_us > 1000 ? 1000 : step_time_us;
-        // * 2 because each call to LinearAxis_step() performs *half* of the step.
+        step_time_us = step_time_us > 2000 ? 2000 : step_time_us;
+        step_time_us = step_time_us < 25 ? 25 : step_time_us;
+        // TODO: this is probably wrong because each call to LinearAxis_step() performs *half* of the step.
         m->_step_interval = step_time_us * 2;
     }
 

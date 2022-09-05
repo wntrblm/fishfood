@@ -7,12 +7,12 @@
 #include "hardware/gpio.h"
 #include "hardware/sync.h"
 #include "hardware/uart.h"
+#include "linear_axis.h"
 #include "littleg/littleg.h"
 #include "pico/bootrom.h"
 #include "pico/stdlib.h"
 #include "pico/time.h"
 #include "rotational_axis.h"
-#include "linear_axis.h"
 #include <math.h>
 #include <stdio.h>
 
@@ -42,6 +42,10 @@ int main() {
     gpio_init(PIN_ACT_LED);
     gpio_set_dir(PIN_ACT_LED, GPIO_OUT);
     gpio_put(PIN_ACT_LED, true);
+
+    gpio_init(PIN_AUX_PIN);
+    gpio_set_dir(PIN_AUX_PIN, GPIO_OUT);
+    gpio_put(PIN_AUX_PIN, false);
 
     Neopixel_init(PIN_CAM_LED);
     Neopixel_set_all(pixels, NUM_PIXELS, 255, 0, 0);
@@ -91,8 +95,8 @@ int main() {
 
     printf("Starting step timer...\n");
     uint32_t irq_status = save_and_disable_interrupts();
-    // 50us is 20kHz, fast enough to achieve speeds up to 200mm/s.
-    add_repeating_timer_us(-50, step_timer_callback, NULL, &step_timer);
+    // 25us is 100kHz, fast enough to achieve speeds up to 400mm/s.
+    add_repeating_timer_us(25, step_timer_callback, NULL, &step_timer);
     restore_interrupts(irq_status);
 
     printf("Ready!\n");

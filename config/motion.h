@@ -31,15 +31,15 @@
 // is high enough to not lose steps when the spring-loaded tip of the nozzle
 // is compressed.
 #define Z_RUN_CURRENT 0.7f
-#define Z_HOLD_CURRENT_MULTIPLIER 1.f
+#define Z_HOLD_CURRENT_MULTIPLIER 0.8f
 #define Z_DEFAULT_VELOCITY_MM_S 150.0f
-#define Z_DEFAULT_ACCELERATION_MM_S2 3000.0f
+#define Z_DEFAULT_ACCELERATION_MM_S2 1000.0f
 #define Z_STEPS_PER_MM 160.0f
 // Sensorless homing stall detection threshold
 // 0 to 255, higher is more sensitive
-#define Z_HOMING_SENSITIVITY 50
+#define Z_HOMING_SENSITIVITY 80
 #define Z_HOMING_VELOCITY_MM_S 160.0f
-#define Z_HOMING_ACCELERATION_MM_S2 15000.0f
+#define Z_HOMING_ACCELERATION_MM_S2 5000.0f
 #define Z_HOMING_DISTANCE_MM 100.0f
 #define Z_HOMING_BOUNCE_MM 20.0f
 #define Z_HOMING_DIR -1
