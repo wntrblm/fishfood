@@ -85,33 +85,33 @@ int main() {
     // Wait for USB connection before continuing.
     while (!stdio_usb_connected()) {}
 
-    printf("Starting peripheral I2C...");
+    printf("| Starting peripheral I2C...");
     i2c_init(MUX_I2C_INST, MUX_I2C_SPEED);
     gpio_set_function(PIN_I2C_SDA, GPIO_FUNC_I2C);
     gpio_set_function(PIN_I2C_SCL, GPIO_FUNC_I2C);
 
-    printf("Starting TMC UART...\n");
+    printf("| Starting TMC UART...\n");
     uart_init(TMC_UART_INST, 115200);
     gpio_set_function(PIN_UART_TX, GPIO_FUNC_UART);
     gpio_set_function(PIN_UART_RX, GPIO_FUNC_UART);
 
-    printf("Starting motors...\n");
+    printf("| Starting motors...\n");
     LinearAxis_setup(&z_motor);
     RotationalAxis_setup(&l_motor);
     RotationalAxis_setup(&r_motor);
 
-    printf("Setting motor current...\n");
+    printf("| Setting motor current...\n");
     TMC2209_set_current(&tmc_z, Z_RUN_CURRENT, Z_RUN_CURRENT * Z_HOLD_CURRENT_MULTIPLIER);
     TMC2209_set_current(&tmc_left, A_RUN_CURRENT, A_RUN_CURRENT * A_HOLD_CURRENT_MULTIPLIER);
     TMC2209_set_current(&tmc_right, B_RUN_CURRENT, B_RUN_CURRENT * B_HOLD_CURRENT_MULTIPLIER);
 
-    printf("Starting step timer...\n");
+    printf("| Starting step timer...\n");
     uint32_t irq_status = save_and_disable_interrupts();
     alarm_pool_t* alarm_pool = alarm_pool_get_default();
     alarm_pool_add_alarm_at(alarm_pool, make_timeout_time_us(1000), step_timer_callback, NULL, true);
     restore_interrupts(irq_status);
 
-    printf("Ready!\n");
+    printf("| Ready!\n");
     Neopixel_set_all(pixels, NUM_PIXELS, 0, 0, 255);
     Neopixel_write(pixels, NUM_PIXELS);
 
@@ -124,7 +124,7 @@ int main() {
         process_incoming_char((char)(in_c));
     }
 
-    printf("Main loop exited due to end of file on stdin\n");
+    printf("! Main loop exited due to end of file on stdin\n");
 }
 
 static int64_t step_timer_callback(alarm_id_t id, void* user_data) {
@@ -144,7 +144,7 @@ static void process_incoming_char(char c) {
     }
 
     if (result == LILG_INVALID) {
-        printf("Invalid command\n");
+        printf("! Could not parse command\n");
         printf("ok\n");
         return;
     }
@@ -159,7 +159,7 @@ static void process_incoming_char(char c) {
         } break;
 
         default: {
-            printf("Unexpected command %c%i\n", cmd.first_field, LILG_FIELDC(cmd, cmd.first_field));
+            printf("! Unexpected command %c%i\n", cmd.first_field, LILG_FIELDC(cmd, cmd.first_field));
         } break;
     }
 
@@ -230,7 +230,7 @@ static void run_g_command(struct lilg_Command cmd) {
         } break;
 
         default:
-            printf("Unknown command G%i\n", cmd.G.real);
+            printf("! Unknown command G%i\n", cmd.G.real);
             break;
     }
 }
@@ -271,7 +271,7 @@ static void run_m_command(struct lilg_Command cmd) {
         case 42: {
             uint8_t pin_index = LILG_FIELD(cmd, P).real;
             if (pin_index >= M42_PIN_TABLE_LEN) {
-                printf("No pin at index %u\n", pin_index);
+                printf("! No pin at index %u\n", pin_index);
                 return;
             }
 
@@ -302,7 +302,7 @@ static void run_m_command(struct lilg_Command cmd) {
                         gpio_pull_down(pin_desc.pin);
                     } break;
                     default: {
-                        printf("Invalid type %u, must be 0, 1, 2, or 3.\n", LILG_FIELD(cmd, S).real);
+                        printf("! Invalid type %u, must be 0, 1, 2, or 3.\n", LILG_FIELD(cmd, S).real);
                         return;
                     };
                 }
@@ -311,7 +311,7 @@ static void run_m_command(struct lilg_Command cmd) {
             if (LILG_FIELD(cmd, S).set) {
                 bool val = LILG_FIELD(cmd, S).real > 0 ? true : false;
                 gpio_put(pin_desc.pin, val);
-                printf("Pin %u (%s GPIO%u) set to %u\n", pin_index, pin_desc.name, pin_desc.pin, val);
+                printf("> P:%u name:%s GPIO:%u S:%u\n", pin_index, pin_desc.name, pin_desc.pin, val);
             }
         } break;
 
@@ -323,7 +323,7 @@ static void run_m_command(struct lilg_Command cmd) {
                 for (size_t i = 0; i < M42_PIN_TABLE_LEN; i++) {
                     const struct M42PinTableEntry pin_desc = M42_PIN_TABLE[i];
                     printf(
-                        "- Pin %u (%s GPIO%u) (%s) is %u",
+                        "> P:%u name:%s GPIO:%u dir:%s state:%u",
                         i,
                         pin_desc.name,
                         pin_desc.pin,
@@ -333,14 +333,14 @@ static void run_m_command(struct lilg_Command cmd) {
             } else {
                 uint8_t pin_index = LILG_FIELD(cmd, P).real;
                 if (pin_index >= M42_PIN_TABLE_LEN) {
-                    printf("No pin at index %u\n", pin_index);
+                    printf("! No pin at index %u\n", pin_index);
                     return;
                 }
 
                 const struct M42PinTableEntry pin_desc = M42_PIN_TABLE[pin_index];
 
                 printf(
-                    "- Pin %u (%s GPIO%u) (%s) is %u",
+                    "> P:%u name:%s GPIO:%u dir:%s state:%u",
                     pin_index,
                     pin_desc.name,
                     pin_desc.pin,
@@ -365,7 +365,7 @@ static void run_m_command(struct lilg_Command cmd) {
         // M115 get firmware info
         // https://marlinfw.org/docs/gcode/M115.html
         case 115: {
-            printf("FIRMWARE_NAME:Picostep\n");
+            printf("> firmware_name:Picostep\n");
         } break;
 
         // M122 TMC debugging
@@ -384,7 +384,7 @@ static void run_m_command(struct lilg_Command cmd) {
             int32_t b = LILG_FIELD(cmd, B).real;
             Neopixel_set_all(pixels, NUM_PIXELS, r, g, b);
             Neopixel_write(pixels, NUM_PIXELS);
-            printf("R:%i G:%i B: %i\n", r, g, b);
+            printf("> R:%i G:%i B: %i\n", r, g, b);
         } break;
 
         // M204 Set Starting Acceleration
@@ -392,7 +392,7 @@ static void run_m_command(struct lilg_Command cmd) {
         case 204: {
             float accel = lilg_Decimal_to_float(LILG_FIELD(cmd, T));
             z_motor.acceleration_mm_s2 = accel;
-            printf("> Set acceleration to %0.2f mm/s^2\n", z_motor.acceleration_mm_s2);
+            printf("> T:%0.2f mm/s^2\n", z_motor.acceleration_mm_s2);
         } break;
 
         // M260 I2C Send
@@ -400,7 +400,7 @@ static void run_m_command(struct lilg_Command cmd) {
         case 260: {
             if (LILG_FIELD(cmd, A).set) {
                 mux_i2c_target_addr = LILG_FIELD(cmd, A).real;
-                printf("> i2c target address: %u\n", mux_i2c_target_addr);
+                printf("> i2c A: %u\n", mux_i2c_target_addr);
             }
 
             if (LILG_FIELD(cmd, B).set) {
@@ -421,7 +421,7 @@ static void run_m_command(struct lilg_Command cmd) {
             }
 
             if (LILG_FIELD(cmd, S).set) {
-                printf("> i2c sending %u bytes to address %u...\n", mux_i2c_target_addr, mux_i2c_buf_idx);
+                printf("> i2c sending %u bytes to %u...\n", mux_i2c_target_addr, mux_i2c_buf_idx);
                 int result = i2c_write_timeout_us(
                     MUX_I2C_INST, mux_i2c_target_addr, mux_i2c_buf, mux_i2c_buf_idx, false, MUX_I2C_TIMEOUT);
 
@@ -474,7 +474,7 @@ static void run_m_command(struct lilg_Command cmd) {
 
             size_t bytes_read = result;
 
-            printf("> i2c-reply: from:%u bytes:%u data:", addr, bytes_read);
+            printf("> i2c reply: from:%u bytes:%u data:", addr, bytes_read);
             switch (style) {
                 case 1: {
                     for (size_t i = 0; i < bytes_read; i++) { printf("%02X ", mux_i2c_buf[i]); }
@@ -526,8 +526,10 @@ static void run_m_command(struct lilg_Command cmd) {
         // M914 Set bump sensitivity
         // https://marlinfw.org/docs/gcode/M914.html
         case 914: {
-            z_motor.homing_sensitivity = cmd.Z.real;
-            printf("> Set homing sensitivity to %u\n", cmd.Z.real);
+            if (cmd.Z.set) {
+                z_motor.homing_sensitivity = cmd.Z.real;
+            }
+            printf("> Z:%u\n", z_motor.homing_sensitivity);
         } break;
 
         // M997 firmware update
@@ -537,7 +539,7 @@ static void run_m_command(struct lilg_Command cmd) {
         } break;
 
         default:
-            printf("Unknown command M%i\n", cmd.M.real);
+            printf("! Unknown command M%i\n", cmd.M.real);
             break;
     }
 }
