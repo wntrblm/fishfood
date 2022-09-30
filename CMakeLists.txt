@@ -31,4 +31,4 @@ pico_enable_stdio_uart(picostep 0)
 pico_enable_stdio_usb(picostep 1)
 pico_add_extra_outputs(picostep)
 
-target_link_libraries(picostep pico_stdlib hardware_pio hardware_dma hardware_irq)
+target_link_libraries(picostep pico_stdlib hardware_pio hardware_dma hardware_irq hardware_i2c)

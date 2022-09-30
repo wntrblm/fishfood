@@ -1,10 +1,12 @@
 #include "config/motion.h"
 #include "config/pins.h"
+#include "config/serial.h"
 #include "drivers/neopixel.h"
 #include "drivers/tmc2209.h"
 #include "drivers/tmc2209_helper.h"
 #include "drivers/tmc_uart.h"
 #include "hardware/gpio.h"
+#include "hardware/i2c.h"
 #include "hardware/sync.h"
 #include "hardware/uart.h"
 #include "linear_axis.h"
@@ -13,11 +15,16 @@
 #include "pico/stdlib.h"
 #include "pico/time.h"
 #include "rotational_axis.h"
+#include "wntr_pack.h"
 #include <math.h>
 #include <stdio.h>
 
 #define NUM_PIXELS 8
 static uint8_t pixels[3 * NUM_PIXELS];
+
+static uint8_t mux_i2c_target_addr = 0x00;
+static uint8_t mux_i2c_buf[MUX_I2C_BUF_LEN];
+static size_t mux_i2c_buf_idx = 0;
 
 static struct TMC2209 tmc_left;
 static struct TMC2209 tmc_right;
@@ -51,9 +58,9 @@ int main() {
     Neopixel_set_all(pixels, NUM_PIXELS, 255, 0, 0);
     Neopixel_write(pixels, NUM_PIXELS);
 
-    TMC2209_init(&tmc_z, uart0, 1, tmc_uart_read_write);
-    TMC2209_init(&tmc_left, uart0, 0, tmc_uart_read_write);
-    TMC2209_init(&tmc_right, uart0, 3, tmc_uart_read_write);
+    TMC2209_init(&tmc_z, TMC_UART_INST, 1, tmc_uart_read_write);
+    TMC2209_init(&tmc_left, TMC_UART_INST, 0, tmc_uart_read_write);
+    TMC2209_init(&tmc_right, TMC_UART_INST, 3, tmc_uart_read_write);
 
     LinearAxis_init(&z_motor, 'Z', &tmc_z, PIN_M1_EN, PIN_M1_DIR, PIN_M1_STEP, PIN_M1_DIAG);
     z_motor.steps_per_mm = Z_STEPS_PER_MM;
@@ -78,8 +85,13 @@ int main() {
     // Wait for USB connection before continuing.
     while (!stdio_usb_connected()) {}
 
-    printf("Starting UART...\n");
-    uart_init(uart0, 115200);
+    printf("Starting peripheral I2C...");
+    i2c_init(MUX_I2C_INST, MUX_I2C_SPEED);
+    gpio_set_function(PIN_I2C_SDA, GPIO_FUNC_I2C);
+    gpio_set_function(PIN_I2C_SCL, GPIO_FUNC_I2C);
+
+    printf("Starting TMC UART...\n");
+    uart_init(TMC_UART_INST, 115200);
     gpio_set_function(PIN_UART_TX, GPIO_FUNC_UART);
     gpio_set_function(PIN_UART_RX, GPIO_FUNC_UART);
 
@@ -381,6 +393,117 @@ static void run_m_command(struct lilg_Command cmd) {
             float accel = lilg_Decimal_to_float(LILG_FIELD(cmd, T));
             z_motor.acceleration_mm_s2 = accel;
             printf("> Set acceleration to %0.2f mm/s^2\n", z_motor.acceleration_mm_s2);
+        } break;
+
+        // M260 I2C Send
+        // https://marlinfw.org/docs/gcode/M260.html
+        case 260: {
+            if (LILG_FIELD(cmd, A).set) {
+                mux_i2c_target_addr = LILG_FIELD(cmd, A).real;
+                printf("> i2c target address: %u\n", mux_i2c_target_addr);
+            }
+
+            if (LILG_FIELD(cmd, B).set) {
+                if (mux_i2c_buf_idx == MUX_I2C_BUF_LEN - 1) {
+                    printf("! i2c buffer full\n");
+                    return;
+                }
+
+                uint8_t byte = LILG_FIELD(cmd, B).real;
+                mux_i2c_buf[mux_i2c_buf_idx] = byte;
+                printf("> i2c buffer[%u]: %u\n", mux_i2c_buf_idx, byte);
+                mux_i2c_buf_idx++;
+            }
+
+            if (LILG_FIELD(cmd, R).set) {
+                mux_i2c_buf_idx = 0;
+                printf("> i2c buffer reset\n");
+            }
+
+            if (LILG_FIELD(cmd, S).set) {
+                printf("> i2c sending %u bytes to address %u...\n", mux_i2c_target_addr, mux_i2c_buf_idx);
+                int result = i2c_write_timeout_us(
+                    MUX_I2C_INST, mux_i2c_target_addr, mux_i2c_buf, mux_i2c_buf_idx, false, MUX_I2C_TIMEOUT);
+
+                mux_i2c_buf_idx = 0;
+
+                if (result == PICO_ERROR_GENERIC) {
+                    printf("! Failed, device not present or not responding.\n");
+                    return;
+                }
+                if (result == PICO_ERROR_TIMEOUT) {
+                    printf("! Failed, timeout exceeded.\n");
+                    return;
+                }
+            }
+        } break;
+
+        // M261 I2C Request
+        case 261: {
+            uint8_t addr = LILG_FIELD(cmd, A).set ? LILG_FIELD(cmd, A).real : mux_i2c_target_addr;
+            size_t count = LILG_FIELD(cmd, B).real;
+            uint8_t style = LILG_FIELD(cmd, S).real;
+
+            if (addr == 0) {
+                printf("! No address specified in the A field\n");
+                return;
+            }
+            if (count < 1) {
+                printf("! Can not read zero bytes, set the B field to >= 1\n");
+                return;
+            }
+            if (count > MUX_I2C_BUF_LEN) {
+                printf("! Can not read more than %u bytes\n", MUX_I2C_BUF_LEN);
+                return;
+            }
+
+            int result =
+                i2c_read_timeout_us(MUX_I2C_INST, mux_i2c_target_addr, mux_i2c_buf, count, false, MUX_I2C_TIMEOUT);
+
+            if (result == PICO_ERROR_GENERIC) {
+                printf("! Failed, device not present or not responding\n");
+                return;
+            }
+            if (result == PICO_ERROR_TIMEOUT) {
+                printf("! Failed, timeout exceeded\n");
+                return;
+            }
+            if (result < 0) {
+                printf("! Failed, unknown error %i occurred\n", result);
+            }
+
+            size_t bytes_read = result;
+
+            printf("> i2c-reply: from:%u bytes:%u data:", addr, bytes_read);
+            switch (style) {
+                case 1: {
+                    for (size_t i = 0; i < bytes_read; i++) { printf("%02X ", mux_i2c_buf[i]); }
+                } break;
+                case 2: {
+                    switch (bytes_read) {
+                        case 1:
+                            printf("%u", mux_i2c_buf[0]);
+                            break;
+                        case 2:
+                            printf("%u", WNTR_UNPACK_16(mux_i2c_buf, 0));
+                            break;
+                        case 4:
+                            printf("%u", WNTR_UNPACK_32(mux_i2c_buf, 0));
+                            break;
+                        default:
+                            printf("! Wrong number of bytes for integer reply: %u", bytes_read);
+                            return;
+                    }
+                } break;
+
+                case 0:
+                default: {
+                    for (size_t i = 0; i < bytes_read; i++) { printf("%c", mux_i2c_buf[i]); }
+                } break;
+            }
+
+            printf("\n");
+
         } break;
 
         // M906 Set motor current
