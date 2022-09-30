@@ -10,6 +10,7 @@ set(CMAKE_CXX_STANDARD 17)
 pico_sdk_init()
 
 add_compile_definitions(PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64)
+add_compile_definitions(STARFISH=1)
 
 add_executable(picostep
   main.c

@@ -31,7 +31,7 @@ static repeating_timer_t step_timer;
 
 static bool absolute_positioning = true;
 
-static int64_t step_timer_callback(alarm_id_t id, void *user_data);
+static int64_t step_timer_callback(alarm_id_t id, void* user_data);
 static void process_incoming_char(char c);
 static void run_g_command(struct lilg_Command cmd);
 static void run_m_command(struct lilg_Command cmd);
@@ -43,9 +43,9 @@ int main() {
     gpio_set_dir(PIN_ACT_LED, GPIO_OUT);
     gpio_put(PIN_ACT_LED, true);
 
-    gpio_init(PIN_AUX_PIN);
-    gpio_set_dir(PIN_AUX_PIN, GPIO_OUT);
-    gpio_put(PIN_AUX_PIN, false);
+    gpio_init(PIN_AUX_OUT);
+    gpio_set_dir(PIN_AUX_OUT, GPIO_OUT);
+    gpio_put(PIN_AUX_OUT, false);
 
     Neopixel_init(PIN_CAM_LED);
     Neopixel_set_all(pixels, NUM_PIXELS, 255, 0, 0);
@@ -96,8 +96,7 @@ int main() {
     printf("Starting step timer...\n");
     uint32_t irq_status = save_and_disable_interrupts();
     alarm_pool_t* alarm_pool = alarm_pool_get_default();
-    alarm_pool_add_alarm_at(
-        alarm_pool, make_timeout_time_us(1000), step_timer_callback, NULL, true);
+    alarm_pool_add_alarm_at(alarm_pool, make_timeout_time_us(1000), step_timer_callback, NULL, true);
     restore_interrupts(irq_status);
 
     printf("Ready!\n");
@@ -116,7 +115,7 @@ int main() {
     printf("Main loop exited due to end of file on stdin\n");
 }
 
-static int64_t step_timer_callback(alarm_id_t id, void *user_data) {
+static int64_t step_timer_callback(alarm_id_t id, void* user_data) {
     LinearAxis_step(&z_motor);
     RotationalAxis_step(&l_motor);
     RotationalAxis_step(&r_motor);
@@ -251,6 +250,90 @@ static void run_m_command(struct lilg_Command cmd) {
             }
             if (all || LILG_FIELD(cmd, B).set) {
                 gpio_put(r_motor.pin_enn, 1);
+            }
+        } break;
+
+        // M42 Set pin state
+        // This is slightly different from Marlin's implementation
+        // https://marlinfw.org/docs/gcode/M042.html
+        case 42: {
+            uint8_t pin_index = LILG_FIELD(cmd, P).real;
+            if (pin_index >= M42_PIN_TABLE_LEN) {
+                printf("No pin at index %u\n", pin_index);
+                return;
+            }
+
+            const struct M42PinTableEntry pin_desc = M42_PIN_TABLE[pin_index];
+
+            if (LILG_FIELD(cmd, T).set) {
+                switch (LILG_FIELD(cmd, S).real) {
+                    // Input
+                    case 0: {
+                        gpio_init(pin_desc.pin);
+                        gpio_set_dir(pin_desc.pin, GPIO_IN);
+                    } break;
+                    // Output
+                    case 1: {
+                        gpio_init(pin_desc.pin);
+                        gpio_set_dir(pin_desc.pin, GPIO_OUT);
+                    } break;
+                    // Input, pull-up
+                    case 2: {
+                        gpio_init(pin_desc.pin);
+                        gpio_set_dir(pin_desc.pin, GPIO_IN);
+                        gpio_pull_up(pin_desc.pin);
+                    } break;
+                    // Input, pull-down
+                    case 3: {
+                        gpio_init(pin_desc.pin);
+                        gpio_set_dir(pin_desc.pin, GPIO_IN);
+                        gpio_pull_down(pin_desc.pin);
+                    } break;
+                    default: {
+                        printf("Invalid type %u, must be 0, 1, 2, or 3.\n", LILG_FIELD(cmd, S).real);
+                        return;
+                    };
+                }
+            }
+
+            if (LILG_FIELD(cmd, S).set) {
+                bool val = LILG_FIELD(cmd, S).real > 0 ? true : false;
+                gpio_put(pin_desc.pin, val);
+                printf("Pin %u (%s GPIO%u) set to %u\n", pin_index, pin_desc.name, pin_desc.pin, val);
+            }
+        } break;
+
+        // M43 Report pin state
+        // https://marlinfw.org/docs/gcode/M043.html
+        case 43: {
+            if (!LILG_FIELD(cmd, P).set) {
+                // Report all pins
+                for (size_t i = 0; i < M42_PIN_TABLE_LEN; i++) {
+                    const struct M42PinTableEntry pin_desc = M42_PIN_TABLE[i];
+                    printf(
+                        "- Pin %u (%s GPIO%u) (%s) is %u",
+                        i,
+                        pin_desc.name,
+                        pin_desc.pin,
+                        gpio_is_dir_out(pin_desc.pin) ? "output" : "input",
+                        gpio_is_dir_out(pin_desc.pin) ? gpio_get_out_level(pin_desc.pin) : gpio_get(pin_desc.pin));
+                }
+            } else {
+                uint8_t pin_index = LILG_FIELD(cmd, P).real;
+                if (pin_index >= M42_PIN_TABLE_LEN) {
+                    printf("No pin at index %u\n", pin_index);
+                    return;
+                }
+
+                const struct M42PinTableEntry pin_desc = M42_PIN_TABLE[pin_index];
+
+                printf(
+                    "- Pin %u (%s GPIO%u) (%s) is %u",
+                    pin_index,
+                    pin_desc.name,
+                    pin_desc.pin,
+                    gpio_is_dir_out(pin_desc.pin) ? "output" : "input",
+                    gpio_is_dir_out(pin_desc.pin) ? gpio_get_out_level(pin_desc.pin) : gpio_get(pin_desc.pin));
             }
         } break;
 
