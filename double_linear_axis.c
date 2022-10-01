@@ -1,8 +1,8 @@
-#include "linear_axis.h"
 #include "config/motion.h"
 #include "drivers/tmc2209_helper.h"
 #include "hardware/gpio.h"
 #include "hardware/sync.h"
+#include "double_linear_axis.h"
 #include <math.h>
 #include <stdio.h>
 
@@ -20,35 +20,46 @@ enum HomingState {
 /*
     Static variables
 */
-volatile static struct LinearAxis* current_motor;
+volatile static struct DoubleLinearAxis* current_motor;
 
 /*
-    Forward declarations
+    Forward declarationsd
 */
-static void setup_move(volatile struct LinearAxis* m, float dest_mm);
+static void setup_move(volatile struct DoubleLinearAxis* m, float dest_mm);
 static bool step_timer_callback(repeating_timer_t* rt);
 static void diag_pin_irq();
-static void debug_stallguard(volatile struct LinearAxis* m);
+static void debug_stallguard(volatile struct DoubleLinearAxis* m);
 
 /*
     Public methods
 */
 
-void LinearAxis_init(
-    struct LinearAxis* m,
+void DoubleLinearAxis_init(
+    struct DoubleLinearAxis* m,
     char name,
-    struct TMC2209* tmc,
-    uint32_t pin_enn,
-    uint32_t pin_dir,
-    uint32_t pin_step,
-    uint32_t pin_diag) {
+    struct TMC2209* tmc_a,
+    uint32_t pin_enn_a,
+    uint32_t pin_dir_a,
+    uint32_t pin_step_a,
+    uint32_t pin_diag_a,
+    struct TMC2209* tmc_b,
+    uint32_t pin_enn_b,
+    uint32_t pin_dir_b,
+    uint32_t pin_step_b,
+    uint32_t pin_diag_b) {
     m->name = name;
 
-    m->tmc = tmc;
-    m->pin_enn = pin_enn;
-    m->pin_dir = pin_dir;
-    m->pin_step = pin_step;
-    m->pin_diag = pin_diag;
+    m->tmc_a = tmc_a;
+    m->pin_enn_a = pin_enn_a;
+    m->pin_dir_a = pin_dir_a;
+    m->pin_step_a = pin_step_a;
+    m->pin_diag_a = pin_diag_a;
+
+    m->tmc_b = tmc_b;
+    m->pin_enn_b = pin_enn_b;
+    m->pin_dir_b = pin_dir_b;
+    m->pin_step_b = pin_step_b;
+    m->pin_diag_b = pin_diag_b;
 
     m->actual_steps = 0;
 
@@ -68,24 +79,45 @@ void LinearAxis_init(
     m->homing_sensitivity = 100;
 }
 
-bool LinearAxis_setup(struct LinearAxis* m) {
-    gpio_init(m->pin_enn);
-    gpio_set_dir(m->pin_enn, GPIO_OUT);
-    gpio_put(m->pin_enn, true);
+bool DoubleLinearAxis_setup(struct DoubleLinearAxis* m) {
+    gpio_init(m->pin_enn_a);
+    gpio_set_dir(m->pin_enn_a, GPIO_OUT);
+    gpio_put(m->pin_enn_a, true);
 
-    gpio_init(m->pin_dir);
-    gpio_set_dir(m->pin_dir, GPIO_OUT);
-    gpio_put(m->pin_dir, false);
+    gpio_init(m->pin_dir_a);
+    gpio_set_dir(m->pin_dir_a, GPIO_OUT);
+    gpio_put(m->pin_dir_a, false);
 
-    gpio_init(m->pin_step);
-    gpio_set_dir(m->pin_step, GPIO_OUT);
-    gpio_put(m->pin_step, false);
+    gpio_init(m->pin_step_a);
+    gpio_set_dir(m->pin_step_a, GPIO_OUT);
+    gpio_put(m->pin_step_a, false);
 
-    gpio_init(m->pin_diag);
-    gpio_set_dir(m->pin_diag, GPIO_IN);
-    gpio_pull_down(m->pin_diag);
+    gpio_init(m->pin_diag_a);
+    gpio_set_dir(m->pin_diag_a, GPIO_IN);
+    gpio_pull_down(m->pin_diag_a);
 
-    if (!TMC2209_write_config(m->tmc, m->pin_enn)) {
+    if (!TMC2209_write_config(m->tmc_a, m->pin_enn_a)) {
+        printf("Error configuring TMC2209 for %c axis!", m->name);
+        return false;
+    }
+
+    gpio_init(m->pin_enn_b);
+    gpio_set_dir(m->pin_enn_b, GPIO_OUT);
+    gpio_put(m->pin_enn_b, true);
+
+    gpio_init(m->pin_dir_b);
+    gpio_set_dir(m->pin_dir_b, GPIO_OUT);
+    gpio_put(m->pin_dir_b, true);
+
+    gpio_init(m->pin_step_b);
+    gpio_set_dir(m->pin_step_b, GPIO_OUT);
+    gpio_put(m->pin_step_b, false);
+
+    gpio_init(m->pin_diag_b);
+    gpio_set_dir(m->pin_diag_b, GPIO_IN);
+    gpio_pull_down(m->pin_diag_b);
+
+    if (!TMC2209_write_config(m->tmc_b, m->pin_enn_b)) {
         printf("Error configuring TMC2209 for %c axis!", m->name);
         return false;
     }
@@ -93,7 +125,7 @@ bool LinearAxis_setup(struct LinearAxis* m) {
     return true;
 }
 
-void LinearAxis_home(volatile struct LinearAxis* m) {
+void DoubleLinearAxis_home(volatile struct DoubleLinearAxis* m) {
     printf("> Homing %c axis...\n", m->name);
     printf("> Stallguard is %u\n", m->homing_sensitivity);
 
@@ -110,15 +142,13 @@ void LinearAxis_home(volatile struct LinearAxis* m) {
     // TODO: At some point this needs to use a more sophisticated GPIO IRQ,
     // since the built-in picosdk only provides *one* callback for *all* gpio
     // events.
-    gpio_set_irq_enabled_with_callback(m->pin_diag, GPIO_IRQ_EDGE_RISE, true, &diag_pin_irq);
+    gpio_set_irq_enabled_with_callback(m->pin_diag_a, GPIO_IRQ_EDGE_RISE, true, &diag_pin_irq);
     setup_move(m, m->homing_direction * m->homing_distance_mm);
 
     // Ignore stallguard output until it's up to speed
-    while (m->_current_step_count < m->_accel_step_count) {
-        tight_loop_contents();
-    }
+    while (m->_current_step_count < m->_accel_step_count) { tight_loop_contents(); }
 
-    TMC2209_write(m->tmc, TMC2209_SGTHRS, m->homing_sensitivity);
+    TMC2209_write(m->tmc_a, TMC2209_SGTHRS, m->homing_sensitivity);
     m->_crash_flag = false;
 
     while (!m->_crash_flag) {
@@ -127,24 +157,22 @@ void LinearAxis_home(volatile struct LinearAxis* m) {
         // debug_stallguard(m);
     }
 
-    LinearAxis_stop(m);
+    DoubleLinearAxis_stop(m);
 
     printf("> Endstop found, bouncing...\n");
-    TMC2209_write(m->tmc, TMC2209_SGTHRS, 0);
+    TMC2209_write(m->tmc_a, TMC2209_SGTHRS, 0);
     m->_crash_flag = false;
-    LinearAxis_reset_position(m);
+    DoubleLinearAxis_reset_position(m);
     setup_move(current_motor, -(m->homing_direction * m->homing_bounce_mm));
 
-    while (LinearAxis_is_moving(m)) { tight_loop_contents(); }
+    while (DoubleLinearAxis_is_moving(m)) { tight_loop_contents(); }
 
     printf("> Re-seeking...\n");
     setup_move(m, m->homing_direction * m->homing_bounce_mm * 2);
 
-    while (m->_current_step_count < m->_accel_step_count) {
-        tight_loop_contents();
-    }
+    while (m->_current_step_count < m->_accel_step_count) { tight_loop_contents(); }
 
-    TMC2209_write(m->tmc, TMC2209_SGTHRS, m->homing_sensitivity);
+    TMC2209_write(m->tmc_a, TMC2209_SGTHRS, m->homing_sensitivity);
     m->_crash_flag = false;
 
     while (!m->_crash_flag) {
@@ -153,35 +181,40 @@ void LinearAxis_home(volatile struct LinearAxis* m) {
         // debug_stallguard(m);
     }
 
-    LinearAxis_stop(m);
+    DoubleLinearAxis_stop(m);
 
     printf("> Found! Saving home position...\n");
-    LinearAxis_reset_position(m);
+    DoubleLinearAxis_reset_position(m);
 
     printf("> Disabling stallguard...\n");
-    TMC2209_write(m->tmc, TMC2209_SGTHRS, 0);
+    TMC2209_write(m->tmc_a, TMC2209_SGTHRS, 0);
 
     m->velocity_mm_s = old_velocity;
     m->acceleration_mm_s2 = old_acceleration;
     printf("> %c axis homing complete!\n", m->name);
 }
 
-void LinearAxis_start_move(volatile struct LinearAxis* m, float dest_mm) { setup_move(m, dest_mm); }
+void DoubleLinearAxis_start_move(volatile struct DoubleLinearAxis* m, float dest_mm) { setup_move(m, dest_mm); }
 
-void LinearAxis_wait_for_move(volatile struct LinearAxis* m) {
+void DoubleLinearAxis_wait_for_move(volatile struct DoubleLinearAxis* m) {
     absolute_time_t report_time = make_timeout_time_ms(1000);
-    while (LinearAxis_is_moving(m)) {
-        if(absolute_time_diff_us(get_absolute_time(), report_time) <= 0) {
-            printf("> Still moving, report_at=%lld, step interval=%lld next step at=%lld, steps taken=%d\n", report_time, m->_step_interval, m->_next_step_at, m->_current_step_count);
+    while (DoubleLinearAxis_is_moving(m)) {
+        if (absolute_time_diff_us(get_absolute_time(), report_time) <= 0) {
+            printf(
+                "> Still moving, report_at=%lld, step interval=%lld next step at=%lld, steps taken=%d\n",
+                report_time,
+                m->_step_interval,
+                m->_next_step_at,
+                m->_current_step_count);
             report_time = make_timeout_time_ms(1000);
         }
         tight_loop_contents();
     }
 
-    printf("> %c axis moved to %0.3f (%i steps).\n", m->name, LinearAxis_get_position_mm(m), m->actual_steps);
+    printf("> %c axis moved to %0.3f (%i steps).\n", m->name, DoubleLinearAxis_get_position_mm(m), m->actual_steps);
 }
 
-float LinearAxis_get_position_mm(volatile struct LinearAxis* m) {
+float DoubleLinearAxis_get_position_mm(volatile struct DoubleLinearAxis* m) {
     return (float)(m->actual_steps) * (1.0f / m->steps_per_mm);
 }
 
@@ -189,9 +222,9 @@ float LinearAxis_get_position_mm(volatile struct LinearAxis* m) {
     Private methods
 */
 
-static void setup_move(volatile struct LinearAxis* m, float dest_mm) {
+static void setup_move(volatile struct DoubleLinearAxis* m, float dest_mm) {
     // Calculate how far to move to bring the motor to the destination.
-    float delta_mm = dest_mm - LinearAxis_get_position_mm(m);
+    float delta_mm = dest_mm - DoubleLinearAxis_get_position_mm(m);
     int32_t dir = delta_mm < 0 ? -1 : 1;
 
     // Determine the number of steps needed to complete the move.
@@ -249,7 +282,7 @@ static void diag_pin_irq(uint32_t pin, uint32_t events) {
     current_motor->_crash_flag = true;
 }
 
-void LinearAxis_step(volatile struct LinearAxis* m) {
+void DoubleLinearAxis_step(volatile struct DoubleLinearAxis* m) {
     // Are there any steps to perform?
     if (m->_total_step_count == 0) {
         return;
@@ -260,8 +293,10 @@ void LinearAxis_step(volatile struct LinearAxis* m) {
         return;
     }
 
-    gpio_put(m->pin_dir, m->_dir == 1 ? m->reversed : !m->reversed);
-    gpio_put(m->pin_step, m->_step_edge);
+    gpio_put(m->pin_dir_a, m->_dir == 1 ? m->reversed : !m->reversed);
+    gpio_put(m->pin_dir_b, m->_dir == 1 ? !m->reversed : m->reversed);
+    gpio_put(m->pin_step_a, m->_step_edge);
+    gpio_put(m->pin_step_b, m->_step_edge);
     m->_step_edge = !m->_step_edge;
 
     // Steps happen on rising edges, so when the _step_edge is reset to false
@@ -317,8 +352,8 @@ void LinearAxis_step(volatile struct LinearAxis* m) {
     m->_next_step_at = make_timeout_time_us(m->_step_interval / 2);
 }
 
-static void debug_stallguard(volatile struct LinearAxis* m) {
+static void debug_stallguard(volatile struct DoubleLinearAxis* m) {
     uint32_t sg_result;
-    TMC2209_read(m->tmc, TMC2209_SG_RESULT, &sg_result);
+    TMC2209_read(m->tmc_a, TMC2209_SG_RESULT, &sg_result);
     printf("> SG: %u\n", sg_result);
 }

@@ -10,6 +10,7 @@
 #include "hardware/sync.h"
 #include "hardware/uart.h"
 #include "linear_axis.h"
+#include "double_linear_axis.h"
 #include "littleg/littleg.h"
 #include "pico/bootrom.h"
 #include "pico/stdlib.h"
@@ -31,7 +32,7 @@ static struct TMC2209 tmc1;
 static struct TMC2209 tmc2;
 
 static struct LinearAxis x_axis;
-static struct LinearAxis y_axis;
+static struct DoubleLinearAxis y_axis;
 static struct LinearAxis z_axis;
 static struct RotationalAxis a_axis;
 static struct RotationalAxis b_axis;
@@ -80,7 +81,19 @@ int main() {
 #endif
 
 #ifdef HAS_Y_AXIS
-    LinearAxis_init(&y_axis, 'Y', &Y1_TMC, Y1_PIN_EN, Y1_PIN_DIR, Y1_PIN_STEP, Y1_PIN_DIAG);
+    DoubleLinearAxis_init(
+        &y_axis,
+        'Y',
+        &Y1_TMC,
+        Y1_PIN_EN,
+        Y1_PIN_DIR,
+        Y1_PIN_STEP,
+        Y1_PIN_DIAG,
+        &Y2_TMC,
+        Y2_PIN_EN,
+        Y2_PIN_DIR,
+        Y2_PIN_STEP,
+        Y2_PIN_DIAG);
     y_axis.reversed = Y_REVERSED;
     y_axis.steps_per_mm = Y_STEPS_PER_MM;
     y_axis.velocity_mm_s = Y_DEFAULT_VELOCITY_MM_S;
@@ -138,7 +151,7 @@ int main() {
     LinearAxis_setup(&x_axis);
 #endif
 #ifdef HAS_Y_AXIS
-    LinearAxis_setup(&y_axis);
+    DoubleLinearAxis_setup(&y_axis);
 #endif
 #ifdef HAS_Z_AXIS
     LinearAxis_setup(&z_axis);
@@ -195,7 +208,7 @@ static int64_t step_timer_callback(alarm_id_t id, void* user_data) {
     LinearAxis_step(&x_axis);
 #endif
 #ifdef HAS_Y_AXIS
-    LinearAxis_step(&y_axis);
+    DoubleLinearAxis_step(&y_axis);
 #endif
 #ifdef HAS_Z_AXIS
     LinearAxis_step(&z_axis);
@@ -267,9 +280,9 @@ static void run_g_command(struct lilg_Command cmd) {
             if (cmd.Y.set) {
                 float dest_mm = lilg_Decimal_to_float(cmd.Y);
                 if (!absolute_positioning) {
-                    dest_mm = LinearAxis_get_position_mm(&y_axis) + dest_mm;
+                    dest_mm = DoubleLinearAxis_get_position_mm(&y_axis) + dest_mm;
                 }
-                LinearAxis_start_move(&y_axis, dest_mm);
+                DoubleLinearAxis_start_move(&y_axis, dest_mm);
             }
 #endif
 #ifdef HAS_Z_AXIS
@@ -308,7 +321,7 @@ static void run_g_command(struct lilg_Command cmd) {
 #endif
 #ifdef HAS_Y_AXIS
             if (cmd.Y.set) {
-                LinearAxis_wait_for_move(&y_axis);
+                DoubleLinearAxis_wait_for_move(&y_axis);
             }
 #endif
 #ifdef HAS_Z_AXIS
@@ -338,7 +351,7 @@ static void run_g_command(struct lilg_Command cmd) {
 #endif
 #ifdef HAS_Y_AXIS
             if (cmd.Y.set) {
-                LinearAxis_home(&y_axis);
+                DoubleLinearAxis_home(&y_axis);
             }
 #endif
 #ifdef HAS_Z_AXIS
@@ -379,7 +392,8 @@ static void run_m_command(struct lilg_Command cmd) {
 #endif
 #ifdef HAS_Y_AXIS
             if (all || LILG_FIELD(cmd, Y).set) {
-                gpio_put(y_axis.pin_enn, 0);
+                gpio_put(y_axis.pin_enn_a, 0);
+                gpio_put(y_axis.pin_enn_b, 0);
             }
 #endif
 #ifdef HAS_Z_AXIS
@@ -410,7 +424,8 @@ static void run_m_command(struct lilg_Command cmd) {
 #endif
 #ifdef HAS_Y_AXIS
             if (all || LILG_FIELD(cmd, Y).set) {
-                gpio_put(y_axis.pin_enn, 1);
+                gpio_put(y_axis.pin_enn_a, 1);
+                gpio_put(y_axis.pin_enn_b, 1);
             }
 #endif
 #ifdef HAS_Z_AXIS

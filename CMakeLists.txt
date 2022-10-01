@@ -15,6 +15,7 @@ add_compile_definitions(STARFISH=1)
 add_executable(picostep
   main.c
   linear_axis.c
+  double_linear_axis.c
   rotational_axis.c
   drivers/tmc2209.c
   drivers/tmc2209_helper.c
