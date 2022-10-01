@@ -323,7 +323,7 @@ static void run_m_command(struct lilg_Command cmd) {
                 for (size_t i = 0; i < M42_PIN_TABLE_LEN; i++) {
                     const struct M42PinTableEntry pin_desc = M42_PIN_TABLE[i];
                     printf(
-                        "> P:%u name:%s GPIO:%u dir:%s state:%u",
+                        "> P:%u name:%s GPIO:%u dir:%s state:%u\n",
                         i,
                         pin_desc.name,
                         pin_desc.pin,
@@ -400,7 +400,7 @@ static void run_m_command(struct lilg_Command cmd) {
         case 260: {
             if (LILG_FIELD(cmd, A).set) {
                 mux_i2c_target_addr = LILG_FIELD(cmd, A).real;
-                printf("> i2c A: %u\n", mux_i2c_target_addr);
+                printf("> i2c A:0x%02X\n", mux_i2c_target_addr);
             }
 
             if (LILG_FIELD(cmd, B).set) {
@@ -421,7 +421,7 @@ static void run_m_command(struct lilg_Command cmd) {
             }
 
             if (LILG_FIELD(cmd, S).set) {
-                printf("> i2c sending %u bytes to %u...\n", mux_i2c_target_addr, mux_i2c_buf_idx);
+                printf("> i2c sending %u bytes to %u...\n", mux_i2c_buf_idx, mux_i2c_target_addr);
                 int result = i2c_write_timeout_us(
                     MUX_I2C_INST, mux_i2c_target_addr, mux_i2c_buf, mux_i2c_buf_idx, false, MUX_I2C_TIMEOUT);
 
@@ -458,10 +458,10 @@ static void run_m_command(struct lilg_Command cmd) {
             }
 
             int result =
-                i2c_read_timeout_us(MUX_I2C_INST, mux_i2c_target_addr, mux_i2c_buf, count, false, MUX_I2C_TIMEOUT);
+                i2c_read_timeout_us(MUX_I2C_INST, addr, mux_i2c_buf, count, false, MUX_I2C_TIMEOUT);
 
             if (result == PICO_ERROR_GENERIC) {
-                printf("! Failed, device not present or not responding\n");
+                printf("! Failed, device 0x%2X not present or not responding\n", addr);
                 return;
             }
             if (result == PICO_ERROR_TIMEOUT) {
@@ -504,6 +504,76 @@ static void run_m_command(struct lilg_Command cmd) {
 
             printf("\n");
 
+        } break;
+
+        // M262: I2C Scan
+        // Non-standard.
+        case 262: {
+            for(uint8_t addr = 0; addr < 127; addr++) {
+                if ((addr & 0x78) == 0 || (addr & 0x78) == 0x78) {
+                    continue;
+                }
+
+                uint8_t out[] = {0};
+                int result = i2c_read_timeout_us(MUX_I2C_INST, addr, out, 1, false, MUX_I2C_TIMEOUT);
+
+                if (result < 0) {
+                    printf("> 0x%2X: no response\n", addr);
+                } else {
+                    printf("> 0x%2X: replied 0x%2X\n", addr, out[0]);
+                }
+            }
+        } break;
+
+        // M263: I2C pressure sensor read
+        // Non-standard
+        case 263: {
+            uint8_t which = LILG_FIELD(cmd, P).real == 0 ? 0x08 : 0x04;
+
+            // Configure the MUX.
+            uint8_t buf[2] = {which, 0x00};
+            int result = i2c_write_timeout_us(
+                    MUX_I2C_INST, 0x58, buf, 1, false, MUX_I2C_TIMEOUT);
+
+            if (result < 0) {
+                printf("! Failed to change I2C multiplexer configuration.\n");
+                return;
+            }
+
+            // Configure the measurement parameters.
+            buf[0] = 0x30;
+            buf[1] = 0x0A;
+            result = i2c_write_timeout_us(
+                    MUX_I2C_INST, 0x6D, buf, 2, false, MUX_I2C_TIMEOUT);
+
+            if (result < 0) {
+                printf("! Failed to setup measurement.\n");
+                return;
+            }
+
+            // Wait a bit... 20ms according to datasheet. Alternatively, readback
+            // the 0x30 register and check for bit 3 to be clear.
+            sleep_ms(25);
+
+            // Read each byte needed to form the 24 bit pressure value.
+            uint32_t pressure = 0;
+
+            buf[0] = 0x06;
+            i2c_write_timeout_us(MUX_I2C_INST, 0x6D, buf, 1, false, MUX_I2C_TIMEOUT);
+            i2c_read_timeout_us(MUX_I2C_INST, 0x6D, buf, 1, false, MUX_I2C_TIMEOUT);
+            pressure = buf[0] << 16;
+
+            buf[0] = 0x07;
+            i2c_write_timeout_us(MUX_I2C_INST, 0x6D, buf, 1, false, MUX_I2C_TIMEOUT);
+            i2c_read_timeout_us(MUX_I2C_INST, 0x6D, buf, 1, false, MUX_I2C_TIMEOUT);
+            pressure = pressure | (buf[0] << 8);
+
+            buf[0] = 0x08;
+            i2c_write_timeout_us(MUX_I2C_INST, 0x6D, buf, 1, false, MUX_I2C_TIMEOUT);
+            i2c_read_timeout_us(MUX_I2C_INST, 0x6D, buf, 1, false, MUX_I2C_TIMEOUT);
+            pressure = pressure | buf[0];
+
+            printf("> Pressure: %u\n", pressure);
         } break;
 
         // M906 Set motor current
