@@ -26,13 +26,15 @@ static uint8_t mux_i2c_target_addr = 0x00;
 static uint8_t mux_i2c_buf[MUX_I2C_BUF_LEN];
 static size_t mux_i2c_buf_idx = 0;
 
-static struct TMC2209 tmc_left;
-static struct TMC2209 tmc_right;
-static struct TMC2209 tmc_z;
+static struct TMC2209 tmc0;
+static struct TMC2209 tmc1;
+static struct TMC2209 tmc2;
 
-static struct LinearAxis z_motor;
-static struct RotationalAxis l_motor;
-static struct RotationalAxis r_motor;
+static struct LinearAxis x_axis;
+static struct LinearAxis y_axis;
+static struct LinearAxis z_axis;
+static struct RotationalAxis a_axis;
+static struct RotationalAxis b_axis;
 
 static repeating_timer_t step_timer;
 
@@ -58,26 +60,59 @@ int main() {
     Neopixel_set_all(pixels, NUM_PIXELS, 255, 0, 0);
     Neopixel_write(pixels, NUM_PIXELS);
 
-    TMC2209_init(&tmc_z, TMC_UART_INST, 1, tmc_uart_read_write);
-    TMC2209_init(&tmc_left, TMC_UART_INST, 0, tmc_uart_read_write);
-    TMC2209_init(&tmc_right, TMC_UART_INST, 3, tmc_uart_read_write);
+    TMC2209_init(&tmc0, TMC_UART_INST, 0, tmc_uart_read_write);
+    TMC2209_init(&tmc1, TMC_UART_INST, 1, tmc_uart_read_write);
+    // Note: This should be 2, but both Jellyfish & Starfish skip address 2.
+    TMC2209_init(&tmc2, TMC_UART_INST, 3, tmc_uart_read_write);
 
-    LinearAxis_init(&z_motor, 'Z', &tmc_z, PIN_M1_EN, PIN_M1_DIR, PIN_M1_STEP, PIN_M1_DIAG);
-    z_motor.steps_per_mm = Z_STEPS_PER_MM;
-    z_motor.velocity_mm_s = Z_DEFAULT_VELOCITY_MM_S;
-    z_motor.acceleration_mm_s2 = Z_DEFAULT_ACCELERATION_MM_S2;
-    z_motor.homing_direction = Z_HOMING_DIR;
-    z_motor.homing_distance_mm = Z_HOMING_DISTANCE_MM;
-    z_motor.homing_bounce_mm = Z_HOMING_BOUNCE_MM;
-    z_motor.homing_velocity_mm_s = Z_HOMING_VELOCITY_MM_S;
-    z_motor.homing_acceleration_mm_s2 = Z_HOMING_ACCELERATION_MM_S2;
-    z_motor.homing_sensitivity = Z_HOMING_SENSITIVITY;
+#ifdef HAS_X_AXIS
+    LinearAxis_init(&x_axis, 'X', &X_TMC, X_PIN_EN, X_PIN_DIR, X_PIN_STEP, X_PIN_DIAG);
+    x_axis.steps_per_mm = X_STEPS_PER_MM;
+    x_axis.velocity_mm_s = X_DEFAULT_VELOCITY_MM_S;
+    x_axis.acceleration_mm_s2 = X_DEFAULT_ACCELERATION_MM_S2;
+    x_axis.homing_direction = X_HOMING_DIR;
+    x_axis.homing_distance_mm = X_HOMING_DISTANCE_MM;
+    x_axis.homing_bounce_mm = X_HOMING_BOUNCE_MM;
+    x_axis.homing_velocity_mm_s = X_HOMING_VELOCITY_MM_S;
+    x_axis.homing_acceleration_mm_s2 = X_HOMING_ACCELERATION_MM_S2;
+    x_axis.homing_sensitivity = X_HOMING_SENSITIVITY;
+#endif
 
-    RotationalAxis_init(&l_motor, 'A', &tmc_left, PIN_M0_EN, PIN_M0_DIR, PIN_M0_STEP);
-    l_motor.steps_per_deg = A_STEPS_PER_DEG;
+#ifdef HAS_Y_AXIS
+    LinearAxis_init(&y_axis, 'Y', &Y1_TMC, Y1_PIN_EN, Y1_PIN_DIR, Y1_PIN_STEP, Y1_PIN_DIAG);
+    y_axis.steps_per_mm = Y_STEPS_PER_MM;
+    y_axis.velocity_mm_s = Y_DEFAULT_VELOCITY_MM_S;
+    y_axis.acceleration_mm_s2 = Y_DEFAULT_ACCELERATION_MM_S2;
+    y_axis.homing_direction = Y_HOMING_DIR;
+    y_axis.homing_distance_mm = Y_HOMING_DISTANCE_MM;
+    y_axis.homing_bounce_mm = Y_HOMING_BOUNCE_MM;
+    y_axis.homing_velocity_mm_s = Y_HOMING_VELOCITY_MM_S;
+    y_axis.homing_acceleration_mm_s2 = Y_HOMING_ACCELERATION_MM_S2;
+    y_axis.homing_sensitivity = Y_HOMING_SENSITIVITY;
+#endif
 
-    RotationalAxis_init(&r_motor, 'B', &tmc_right, PIN_M2_EN, PIN_M2_DIR, PIN_M2_STEP);
-    r_motor.steps_per_deg = B_STEPS_PER_DEG;
+#ifdef HAS_Z_AXIS
+    LinearAxis_init(&z_axis, 'Z', &Z_AXIS_TMC, Z_AXIS_PIN_EN, Z_AXIS_PIN_DIR, Z_AXIS_PIN_STEP, Z_AXIS_PIN_DIAG);
+    z_axis.steps_per_mm = Z_STEPS_PER_MM;
+    z_axis.velocity_mm_s = Z_DEFAULT_VELOCITY_MM_S;
+    z_axis.acceleration_mm_s2 = Z_DEFAULT_ACCELERATION_MM_S2;
+    z_axis.homing_direction = Z_HOMING_DIR;
+    z_axis.homing_distance_mm = Z_HOMING_DISTANCE_MM;
+    z_axis.homing_bounce_mm = Z_HOMING_BOUNCE_MM;
+    z_axis.homing_velocity_mm_s = Z_HOMING_VELOCITY_MM_S;
+    z_axis.homing_acceleration_mm_s2 = Z_HOMING_ACCELERATION_MM_S2;
+    z_axis.homing_sensitivity = Z_HOMING_SENSITIVITY;
+#endif
+
+#ifdef HAS_A_AXIS
+    RotationalAxis_init(&a_axis, 'A', &TMC_A, A_PIN_EN, A_PIN_DIR, A_PIN_STEP);
+    a_axis.steps_per_deg = A_STEPS_PER_DEG;
+#endif
+
+#ifdef HAS_B_AXIS
+    RotationalAxis_init(&b_axis, 'B', &TMC_B, B_PIN_EN, B_PIN_DIR, B_PIN_STEP);
+    b_axis.steps_per_deg = B_STEPS_PER_DEG;
+#endif
 
     Neopixel_set_all(pixels, NUM_PIXELS, 0, 255, 0);
     Neopixel_write(pixels, NUM_PIXELS);
@@ -96,14 +131,39 @@ int main() {
     gpio_set_function(PIN_UART_RX, GPIO_FUNC_UART);
 
     printf("| Starting motors...\n");
-    LinearAxis_setup(&z_motor);
-    RotationalAxis_setup(&l_motor);
-    RotationalAxis_setup(&r_motor);
+#ifdef HAS_X_AXIS
+    LinearAxis_setup(&x_axis);
+#endif
+#ifdef HAS_Y_AXIS
+    LinearAxis_setup(&y_axis);
+#endif
+#ifdef HAS_Z_AXIS
+    LinearAxis_setup(&z_axis);
+#endif
+#ifdef HAS_A_AXIS
+    RotationalAxis_setup(&a_axis);
+#endif
+#ifdef HAS_B_AXIS
+    RotationalAxis_setup(&b_axis);
+#endif
 
     printf("| Setting motor current...\n");
-    TMC2209_set_current(&tmc_z, Z_RUN_CURRENT, Z_RUN_CURRENT * Z_HOLD_CURRENT_MULTIPLIER);
-    TMC2209_set_current(&tmc_left, A_RUN_CURRENT, A_RUN_CURRENT * A_HOLD_CURRENT_MULTIPLIER);
-    TMC2209_set_current(&tmc_right, B_RUN_CURRENT, B_RUN_CURRENT * B_HOLD_CURRENT_MULTIPLIER);
+#ifdef HAS_X_AXIS
+    TMC2209_set_current(&X_TMC, X_RUN_CURRENT, X_RUN_CURRENT * X_HOLD_CURRENT_MULTIPLIER);
+#endif
+#ifdef HAS_Y_AXIS
+    TMC2209_set_current(&Y1_TMC, Y_RUN_CURRENT, Y_RUN_CURRENT * Y_HOLD_CURRENT_MULTIPLIER);
+    TMC2209_set_current(&Y2_TMC, Y_RUN_CURRENT, Y_RUN_CURRENT * Y_HOLD_CURRENT_MULTIPLIER);
+#endif
+#ifdef HAS_Z_AXIS
+    TMC2209_set_current(&Z_TMC, Z_RUN_CURRENT, Z_RUN_CURRENT * Z_HOLD_CURRENT_MULTIPLIER);
+#endif
+#ifdef HAS_A_AXIS
+    TMC2209_set_current(&A_TMC, A_RUN_CURRENT, A_RUN_CURRENT * A_HOLD_CURRENT_MULTIPLIER);
+#endif
+#ifdef HAS_B_AXIS
+    TMC2209_set_current(&B_TMC, B_RUN_CURRENT, B_RUN_CURRENT * B_HOLD_CURRENT_MULTIPLIER);
+#endif
 
     printf("| Starting step timer...\n");
     uint32_t irq_status = save_and_disable_interrupts();
@@ -128,9 +188,21 @@ int main() {
 }
 
 static int64_t step_timer_callback(alarm_id_t id, void* user_data) {
-    LinearAxis_step(&z_motor);
-    RotationalAxis_step(&l_motor);
-    RotationalAxis_step(&r_motor);
+#ifdef HAS_X_AXIS
+    LinearAxis_step(&x_axis);
+#endif
+#ifdef HAS_Y_AXIS
+    LinearAxis_step(&y_axis);
+#endif
+#ifdef HAS_Z_AXIS
+    LinearAxis_step(&z_axis);
+#endif
+#ifdef HAS_A_AXIS
+    RotationalAxis_step(&a_axis);
+#endif
+#ifdef HAS_B_AXIS
+    RotationalAxis_step(&b_axis);
+#endif
     return STEP_INTERVAL_US;
 }
 
@@ -174,47 +246,95 @@ static void run_g_command(struct lilg_Command cmd) {
             // F is "feed rate", or velocity in mm/min
             if (LILG_FIELD(cmd, F).set) {
                 float mm_per_min = lilg_Decimal_to_float(LILG_FIELD(cmd, F));
-                z_motor.velocity_mm_s = mm_per_min / 60.0f;
+                z_axis.velocity_mm_s = mm_per_min / 60.0f;
             }
 
+#ifdef HAS_X_AXIS
+            if (cmd.X.set) {
+                float dest_mm = lilg_Decimal_to_float(cmd.X);
+                if (!absolute_positioning) {
+                    dest_mm = LinearAxis_get_position_mm(&x_axis) + dest_mm;
+                }
+                LinearAxis_start_move(&x_axis, dest_mm);
+            }
+#endif
+#ifdef HAS_Y_AXIS
+            if (cmd.Y.set) {
+                float dest_mm = lilg_Decimal_to_float(cmd.Y);
+                if (!absolute_positioning) {
+                    dest_mm = LinearAxis_get_position_mm(&y_axis) + dest_mm;
+                }
+                LinearAxis_start_move(&y_axis, dest_mm);
+            }
+#endif
+#ifdef HAS_Z_AXIS
             if (cmd.Z.set) {
                 float dest_mm = lilg_Decimal_to_float(cmd.Z);
                 if (!absolute_positioning) {
-                    dest_mm = LinearAxis_get_position_mm(&z_motor) + dest_mm;
+                    dest_mm = LinearAxis_get_position_mm(&z_axis) + dest_mm;
                 }
-                LinearAxis_start_move(&z_motor, dest_mm);
+                LinearAxis_start_move(&z_axis, dest_mm);
             }
+#endif
+#ifdef HAS_A_AXIS
             if (LILG_FIELD(cmd, A).set) {
                 float dest_deg = lilg_Decimal_to_float(LILG_FIELD(cmd, A));
                 if (!absolute_positioning) {
-                    dest_deg = RotationalAxis_get_position_deg(&l_motor) + dest_deg;
+                    dest_deg = RotationalAxis_get_position_deg(&a_axis) + dest_deg;
                 }
-                RotationalAxis_start_move(&l_motor, dest_deg);
+                RotationalAxis_start_move(&a_axis, dest_deg);
             }
+#endif
+#ifdef HAS_B_AXIS
             if (LILG_FIELD(cmd, B).set) {
                 float dest_deg = lilg_Decimal_to_float(LILG_FIELD(cmd, B));
                 if (!absolute_positioning) {
-                    dest_deg = RotationalAxis_get_position_deg(&r_motor) + dest_deg;
+                    dest_deg = RotationalAxis_get_position_deg(&b_axis) + dest_deg;
                 }
-                RotationalAxis_start_move(&r_motor, dest_deg);
+                RotationalAxis_start_move(&b_axis, dest_deg);
             }
+#endif
 
             // Wait for all axes to finish moving.
+#ifdef HAS_X_AXIS
+            if (cmd.X.set) {
+                LinearAxis_wait_for_move(&x_axis);
+            }
+#endif
+#ifdef HAS_Y_AXIS
+            if (cmd.Y.set) {
+                LinearAxis_wait_for_move(&y_axis);
+            }
+#endif
+#ifdef HAS_Z_AXIS
             if (cmd.Z.set) {
-                LinearAxis_wait_for_move(&z_motor);
+                LinearAxis_wait_for_move(&z_axis);
             }
+#endif
+#ifdef HAS_A_AXIS
             if (LILG_FIELD(cmd, A).set) {
-                RotationalAxis_wait_for_move(&l_motor);
+                RotationalAxis_wait_for_move(&a_axis);
             }
+#endif
+#ifdef HAS_B_AXIS
             if (LILG_FIELD(cmd, B).set) {
-                RotationalAxis_wait_for_move(&r_motor);
+                RotationalAxis_wait_for_move(&b_axis);
             }
+#endif
         } break;
 
         // Home axes
         // https://marlinfw.org/docs/gcode/G28.html
         case 28: {
-            LinearAxis_home(&z_motor);
+#ifdef HAS_X_AXIS
+            LinearAxis_home(&x_axis);
+#endif
+#ifdef HAS_Y_AXIS
+            LinearAxis_home(&y_axis);
+#endif
+#ifdef HAS_Z_AXIS
+            LinearAxis_home(&z_axis);
+#endif
         } break;
 
         // Absolute positioning
@@ -239,30 +359,64 @@ static void run_m_command(struct lilg_Command cmd) {
     switch (cmd.M.real) {
         // M17 enable steppers.
         case 17: {
-            bool all = (!LILG_FIELD(cmd, Z).set) && (!LILG_FIELD(cmd, A).set) && (!LILG_FIELD(cmd, B).set);
+            bool all = ((!LILG_FIELD(cmd, X).set) && (!LILG_FIELD(cmd, Y).set) && !LILG_FIELD(cmd, Z).set) &&
+                       (!LILG_FIELD(cmd, A).set) && (!LILG_FIELD(cmd, B).set);
+#ifdef HAS_X_AXIS
+            if (all || LILG_FIELD(cmd, X).set) {
+                gpio_put(x_axis.pin_enn, 0);
+            }
+#endif
+#ifdef HAS_Y_AXIS
+            if (all || LILG_FIELD(cmd, Y).set) {
+                gpio_put(y_axis.pin_enn, 0);
+            }
+#endif
+#ifdef HAS_Z_AXIS
             if (all || LILG_FIELD(cmd, Z).set) {
-                gpio_put(z_motor.pin_enn, 0);
+                gpio_put(z_axis.pin_enn, 0);
             }
+#endif
+#ifdef HAS_A_AXIS
             if (all || LILG_FIELD(cmd, A).set) {
-                gpio_put(l_motor.pin_enn, 0);
+                gpio_put(a_axis.pin_enn, 0);
             }
+#endif
+#ifdef HAS_B_AXIS
             if (all || LILG_FIELD(cmd, B).set) {
-                gpio_put(r_motor.pin_enn, 0);
+                gpio_put(b_axis.pin_enn, 0);
             }
+#endif
         } break;
 
         // M18 disable steppers.
         case 18: {
-            bool all = (!LILG_FIELD(cmd, Z).set) && (!LILG_FIELD(cmd, A).set) && (!LILG_FIELD(cmd, B).set);
+            bool all = ((!LILG_FIELD(cmd, X).set) && (!LILG_FIELD(cmd, Y).set) && !LILG_FIELD(cmd, Z).set) &&
+                       (!LILG_FIELD(cmd, A).set) && (!LILG_FIELD(cmd, B).set);
+#ifdef HAS_X_AXIS
+            if (all || LILG_FIELD(cmd, X).set) {
+                gpio_put(x_axis.pin_enn, 1);
+            }
+#endif
+#ifdef HAS_Y_AXIS
+            if (all || LILG_FIELD(cmd, Y).set) {
+                gpio_put(y_axis.pin_enn, 1);
+            }
+#endif
+#ifdef HAS_Z_AXIS
             if (all || LILG_FIELD(cmd, Z).set) {
-                gpio_put(z_motor.pin_enn, 1);
+                gpio_put(z_axis.pin_enn, 1);
             }
+#endif
+#ifdef HAS_A_AXIS
             if (all || LILG_FIELD(cmd, A).set) {
-                gpio_put(l_motor.pin_enn, 1);
+                gpio_put(a_axis.pin_enn, 1);
             }
+#endif
+#ifdef HAS_B_AXIS
             if (all || LILG_FIELD(cmd, B).set) {
-                gpio_put(r_motor.pin_enn, 1);
+                gpio_put(b_axis.pin_enn, 1);
             }
+#endif
         } break;
 
         // M42 Set pin state
@@ -354,12 +508,12 @@ static void run_m_command(struct lilg_Command cmd) {
         case 114: {
             printf(
                 "Z:%0.2f A:%0.2f B:%0.2f Count Z:%i A:%i B:%i\n",
-                LinearAxis_get_position_mm(&z_motor),
-                RotationalAxis_get_position_deg(&l_motor),
-                RotationalAxis_get_position_deg(&r_motor),
-                z_motor.actual_steps,
-                l_motor.actual_steps,
-                r_motor.actual_steps);
+                LinearAxis_get_position_mm(&z_axis),
+                RotationalAxis_get_position_deg(&a_axis),
+                RotationalAxis_get_position_deg(&b_axis),
+                z_axis.actual_steps,
+                a_axis.actual_steps,
+                b_axis.actual_steps);
         } break;
 
         // M115 get firmware info
@@ -371,9 +525,9 @@ static void run_m_command(struct lilg_Command cmd) {
         // M122 TMC debugging
         // https://marlinfw.org/docs/gcode/M122.html
         case 122: {
-            TMC2209_print_all(&tmc_z);
-            TMC2209_print_all(&tmc_left);
-            TMC2209_print_all(&tmc_right);
+            TMC2209_print_all(&tmc0);
+            TMC2209_print_all(&tmc1);
+            TMC2209_print_all(&tmc2);
         } break;
 
         // M150 set RGB
@@ -390,9 +544,23 @@ static void run_m_command(struct lilg_Command cmd) {
         // M204 Set Starting Acceleration
         // https://marlinfw.org/docs/gcode/M204.html
         case 204: {
-            float accel = lilg_Decimal_to_float(LILG_FIELD(cmd, T));
-            z_motor.acceleration_mm_s2 = accel;
-            printf("> T:%0.2f mm/s^2\n", z_motor.acceleration_mm_s2);
+            float reported_accel = 0;
+            if (LILG_FIELD(cmd, T).set) {
+                float accel = lilg_Decimal_to_float(LILG_FIELD(cmd, T));
+#ifdef HAS_X_AXIS
+                x_axis.acceleration_mm_s2 = accel;
+                reported_accel = accel;
+#endif
+#ifdef HAS_Y_AXIS
+                y_axis.acceleration_mm_s2 = accel;
+                reported_accel = accel;
+#endif
+#ifdef HAS_Z_AXIS
+                z_axis.acceleration_mm_s2 = accel;
+                reported_accel = accel;
+#endif
+            }
+            printf("> T:%0.2f mm/s^2\n", reported_accel);
         } break;
 
         // M260 I2C Send
@@ -457,8 +625,7 @@ static void run_m_command(struct lilg_Command cmd) {
                 return;
             }
 
-            int result =
-                i2c_read_timeout_us(MUX_I2C_INST, addr, mux_i2c_buf, count, false, MUX_I2C_TIMEOUT);
+            int result = i2c_read_timeout_us(MUX_I2C_INST, addr, mux_i2c_buf, count, false, MUX_I2C_TIMEOUT);
 
             if (result == PICO_ERROR_GENERIC) {
                 printf("! Failed, device 0x%2X not present or not responding\n", addr);
@@ -509,7 +676,7 @@ static void run_m_command(struct lilg_Command cmd) {
         // M262: I2C Scan
         // Non-standard.
         case 262: {
-            for(uint8_t addr = 0; addr < 127; addr++) {
+            for (uint8_t addr = 0; addr < 127; addr++) {
                 if ((addr & 0x78) == 0 || (addr & 0x78) == 0x78) {
                     continue;
                 }
@@ -532,8 +699,7 @@ static void run_m_command(struct lilg_Command cmd) {
 
             // Configure the MUX.
             uint8_t buf[2] = {which, 0x00};
-            int result = i2c_write_timeout_us(
-                    MUX_I2C_INST, 0x58, buf, 1, false, MUX_I2C_TIMEOUT);
+            int result = i2c_write_timeout_us(MUX_I2C_INST, 0x58, buf, 1, false, MUX_I2C_TIMEOUT);
 
             if (result < 0) {
                 printf("! Failed to change I2C multiplexer configuration.\n");
@@ -543,8 +709,7 @@ static void run_m_command(struct lilg_Command cmd) {
             // Configure the measurement parameters.
             buf[0] = 0x30;
             buf[1] = 0x0A;
-            result = i2c_write_timeout_us(
-                    MUX_I2C_INST, 0x6D, buf, 2, false, MUX_I2C_TIMEOUT);
+            result = i2c_write_timeout_us(MUX_I2C_INST, 0x6D, buf, 2, false, MUX_I2C_TIMEOUT);
 
             if (result < 0) {
                 printf("! Failed to setup measurement.\n");
@@ -579,27 +744,68 @@ static void run_m_command(struct lilg_Command cmd) {
         // M906 Set motor current
         // https://marlinfw.org/docs/gcode/M906.html
         case 906: {
+#ifdef HAS_X_AXIS
+            if (cmd.X.set) {
+                float current = lilg_Decimal_to_float(cmd.X);
+                TMC2209_set_current(&X_TMC, current, current * X_HOLD_CURRENT_MULTIPLIER);
+            }
+#endif
+#ifdef HAS_Y_AXIS
+            if (cmd.Y.set) {
+                float current = lilg_Decimal_to_float(cmd.Y);
+                TMC2209_set_current(&Y1_TMC, current, current * Y_HOLD_CURRENT_MULTIPLIER);
+                TMC2209_set_current(&Y2_TMC, current, current * Y_HOLD_CURRENT_MULTIPLIER);
+            }
+#endif
+#ifdef HAS_Z_AXIS
             if (cmd.Z.set) {
                 float current = lilg_Decimal_to_float(cmd.Z);
-                TMC2209_set_current(&tmc_z, current, current * Z_HOLD_CURRENT_MULTIPLIER);
+                TMC2209_set_current(&Z_TMC, current, current * Z_HOLD_CURRENT_MULTIPLIER);
             }
+#endif
+#ifdef HAS_A_AXIS
             if (LILG_FIELD(cmd, A).set) {
                 float current = lilg_Decimal_to_float(LILG_FIELD(cmd, A));
-                TMC2209_set_current(&tmc_left, current, current * A_HOLD_CURRENT_MULTIPLIER);
+                TMC2209_set_current(&A_TMC, current, current * A_HOLD_CURRENT_MULTIPLIER);
             }
+#endif
+#ifdef HAS_B_AXIS
             if (LILG_FIELD(cmd, B).set) {
                 float current = lilg_Decimal_to_float(LILG_FIELD(cmd, B));
-                TMC2209_set_current(&tmc_right, current, current * B_HOLD_CURRENT_MULTIPLIER);
+                TMC2209_set_current(&B_TMC, current, current * B_HOLD_CURRENT_MULTIPLIER);
             }
+#endif
         } break;
 
         // M914 Set bump sensitivity
         // https://marlinfw.org/docs/gcode/M914.html
         case 914: {
-            if (cmd.Z.set) {
-                z_motor.homing_sensitivity = cmd.Z.real;
+#ifdef HAS_X_AXIS
+            if (cmd.X.set) {
+                x_axis.homing_sensitivity = cmd.X.real;
             }
-            printf("> Z:%u\n", z_motor.homing_sensitivity);
+#endif
+#ifdef HAS_Y_AXIS
+            if (cmd.Y.set) {
+                y_axis.homing_sensitivity = cmd.Y.real;
+            }
+#endif
+#ifdef HAS_Z_AXIS
+            if (cmd.Z.set) {
+                z_axis.homing_sensitivity = cmd.Z.real;
+            }
+#endif
+            printf("> ");
+#ifdef HAS_X_AXIS
+            printf("X:%u ", x_axis.homing_sensitivity);
+#endif
+#ifdef HAS_Y_AXIS
+            printf("Y:%u ", y_axis.homing_sensitivity);
+#endif
+#ifdef HAS_Z_AXIS
+            printf("Z:%u ", z_axis.homing_sensitivity);
+#endif
+            printf("\n");
         } break;
 
         // M997 firmware update
