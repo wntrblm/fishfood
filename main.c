@@ -67,6 +67,7 @@ int main() {
 
 #ifdef HAS_X_AXIS
     LinearAxis_init(&x_axis, 'X', &X_TMC, X_PIN_EN, X_PIN_DIR, X_PIN_STEP, X_PIN_DIAG);
+    x_axis.reversed = X_REVERSED;
     x_axis.steps_per_mm = X_STEPS_PER_MM;
     x_axis.velocity_mm_s = X_DEFAULT_VELOCITY_MM_S;
     x_axis.acceleration_mm_s2 = X_DEFAULT_ACCELERATION_MM_S2;
@@ -80,6 +81,7 @@ int main() {
 
 #ifdef HAS_Y_AXIS
     LinearAxis_init(&y_axis, 'Y', &Y1_TMC, Y1_PIN_EN, Y1_PIN_DIR, Y1_PIN_STEP, Y1_PIN_DIAG);
+    y_axis.reversed = Y_REVERSED;
     y_axis.steps_per_mm = Y_STEPS_PER_MM;
     y_axis.velocity_mm_s = Y_DEFAULT_VELOCITY_MM_S;
     y_axis.acceleration_mm_s2 = Y_DEFAULT_ACCELERATION_MM_S2;
@@ -93,6 +95,7 @@ int main() {
 
 #ifdef HAS_Z_AXIS
     LinearAxis_init(&z_axis, 'Z', &Z_AXIS_TMC, Z_AXIS_PIN_EN, Z_AXIS_PIN_DIR, Z_AXIS_PIN_STEP, Z_AXIS_PIN_DIAG);
+    z_axis.reversed = Z_REVERSED;
     z_axis.steps_per_mm = Z_STEPS_PER_MM;
     z_axis.velocity_mm_s = Z_DEFAULT_VELOCITY_MM_S;
     z_axis.acceleration_mm_s2 = Z_DEFAULT_ACCELERATION_MM_S2;
@@ -246,6 +249,8 @@ static void run_g_command(struct lilg_Command cmd) {
             // F is "feed rate", or velocity in mm/min
             if (LILG_FIELD(cmd, F).set) {
                 float mm_per_min = lilg_Decimal_to_float(LILG_FIELD(cmd, F));
+                x_axis.velocity_mm_s = mm_per_min / 60.0f;
+                y_axis.velocity_mm_s = mm_per_min / 60.0f;
                 z_axis.velocity_mm_s = mm_per_min / 60.0f;
             }
 
@@ -327,13 +332,19 @@ static void run_g_command(struct lilg_Command cmd) {
         // https://marlinfw.org/docs/gcode/G28.html
         case 28: {
 #ifdef HAS_X_AXIS
-            LinearAxis_home(&x_axis);
+            if (cmd.X.set) {
+                LinearAxis_home(&x_axis);
+            }
 #endif
 #ifdef HAS_Y_AXIS
-            LinearAxis_home(&y_axis);
+            if (cmd.Y.set) {
+                LinearAxis_home(&y_axis);
+            }
 #endif
 #ifdef HAS_Z_AXIS
-            LinearAxis_home(&z_axis);
+            if (cmd.Z.set) {
+                LinearAxis_home(&z_axis);
+            }
 #endif
         } break;
 

@@ -260,7 +260,7 @@ void LinearAxis_step(volatile struct LinearAxis* m) {
         return;
     }
 
-    gpio_put(m->pin_dir, m->_dir == 1 ? 0 : 1);
+    gpio_put(m->pin_dir, m->_dir == 1 ? m->reversed : !m->reversed);
     gpio_put(m->pin_step, m->_step_edge);
     m->_step_edge = !m->_step_edge;
 

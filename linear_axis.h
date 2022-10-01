@@ -17,6 +17,7 @@ struct LinearAxis {
     uint32_t pin_diag;
 
     // Motion configuration. These members can be changed directly.
+    bool reversed;
     float steps_per_mm;
 
     // Maximum velocity in mm/s

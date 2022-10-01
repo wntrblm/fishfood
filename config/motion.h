@@ -6,7 +6,7 @@
 /*
     Configuration for the step timer
 */
-#define STEP_INTERVAL_US 20
+#define STEP_INTERVAL_US 10
 
 /*
     Common configuration for all TMC2209 drivers.
@@ -37,14 +37,13 @@
 
 /*
     Configuration for the linear axes (X, Y, and Z).
-
-
 */
 
+#define X_REVERSED 1
 // TODO: This value needs to be empirically validated.
-#define X_RUN_CURRENT 0.7f
-#define X_HOLD_CURRENT_MULTIPLIER 0.8f
-#define X_DEFAULT_VELOCITY_MM_S 150.0f
+#define X_RUN_CURRENT 1.0f
+#define X_HOLD_CURRENT_MULTIPLIER 0.5f
+#define X_DEFAULT_VELOCITY_MM_S 500.0f
 #define X_DEFAULT_ACCELERATION_MM_S2 8000.0f
 // Note: steps/mm is dependent on the microsteps, if you change those this
 // will also need to be updated.
@@ -52,7 +51,7 @@
 // Sensorless homing stall detection threshold
 // 0 to 255, higher is more sensitive
 #define X_HOMING_SENSITIVITY 100
-#define X_HOMING_VELOCITY_MM_S 150.0f
+#define X_HOMING_VELOCITY_MM_S 500.0f
 #define X_HOMING_ACCELERATION_MM_S2 20000.0f
 #define X_HOMING_DISTANCE_MM 500.0f
 #define X_HOMING_BOUNCE_MM 20.0f
@@ -67,6 +66,7 @@
 #define X_PIN_EN PIN_M0_EN
 #endif
 
+#define Y_REVERSED 0
 // TODO: This value needs to be empirically validated.
 #define Y_RUN_CURRENT 0.7f
 #define Y_HOLD_CURRENT_MULTIPLIER 0.8f
@@ -102,6 +102,7 @@
 // heat dissipated and hold torque. It's important that the Z axis' hold torque
 // is high enough to not lose steps when the spring-loaded tip of the nozzle
 // is compressed.
+#define Z_REVERSED 0
 #define Z_RUN_CURRENT 0.7f
 #define Z_HOLD_CURRENT_MULTIPLIER 0.8f
 #define Z_DEFAULT_VELOCITY_MM_S 150.0f
