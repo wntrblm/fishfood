@@ -135,6 +135,7 @@
 #ifdef JELLYFISH
 #define HAS_A_AXIS 1
 #define A_TMC (tmc0)
+#define A_STEPPER (stepper0)
 #define A_PIN_DIR PIN_M0_DIR
 #define A_PIN_DIAG PIN_M0_DIAG
 #define A_PIN_STEP PIN_M0_STEP
@@ -148,6 +149,7 @@
 #ifdef JELLYFISH
 #define HAS_B_AXIS 1
 #define B_TMC (tmc2)
+#define B_STEPPER (stepper2)
 #define B_PIN_DIR PIN_M2_DIR
 #define B_PIN_DIAG PIN_M2_DIAG
 #define B_PIN_STEP PIN_M2_STEP

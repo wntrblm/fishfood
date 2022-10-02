@@ -30,6 +30,9 @@ static size_t mux_i2c_buf_idx = 0;
 static struct TMC2209 tmc0;
 static struct TMC2209 tmc1;
 static struct TMC2209 tmc2;
+static struct Stepper stepper0;
+static struct Stepper stepper1;
+static struct Stepper stepper2;
 
 static struct LinearAxis x_axis;
 static struct DoubleLinearAxis y_axis;
@@ -121,12 +124,14 @@ int main() {
 #endif
 
 #ifdef HAS_A_AXIS
-    RotationalAxis_init(&a_axis, 'A', &A_TMC, A_PIN_EN, A_PIN_DIR, A_PIN_STEP);
+    Stepper_init(&A_STEPPER, &A_TMC, A_PIN_EN, A_PIN_DIR, A_PIN_STEP, A_PIN_DIAG);
+    RotationalAxis_init(&a_axis, 'A', &A_STEPPER);
     a_axis.steps_per_deg = A_STEPS_PER_DEG;
 #endif
 
 #ifdef HAS_B_AXIS
-    RotationalAxis_init(&b_axis, 'B', &B_TMC, B_PIN_EN, B_PIN_DIR, B_PIN_STEP);
+    Stepper_init(&B_STEPPER, &B_TMC, B_PIN_EN, B_PIN_DIR, B_PIN_STEP, B_PIN_DIAG);
+    RotationalAxis_init(&b_axis, 'B', &B_STEPPER);
     b_axis.steps_per_deg = B_STEPS_PER_DEG;
 #endif
 
@@ -156,13 +161,6 @@ int main() {
 #ifdef HAS_Z_AXIS
     LinearAxis_setup(&z_axis);
 #endif
-#ifdef HAS_A_AXIS
-    RotationalAxis_setup(&a_axis);
-#endif
-#ifdef HAS_B_AXIS
-    RotationalAxis_setup(&b_axis);
-#endif
-
     printf("| Setting motor current...\n");
 #ifdef HAS_X_AXIS
     TMC2209_set_current(&X_TMC, X_RUN_CURRENT, X_RUN_CURRENT * X_HOLD_CURRENT_MULTIPLIER);
@@ -403,12 +401,12 @@ static void run_m_command(struct lilg_Command cmd) {
 #endif
 #ifdef HAS_A_AXIS
             if (all || LILG_FIELD(cmd, A).set) {
-                gpio_put(a_axis.pin_enn, 0);
+                Stepper_enable(a_axis.stepper);
             }
 #endif
 #ifdef HAS_B_AXIS
             if (all || LILG_FIELD(cmd, B).set) {
-                gpio_put(b_axis.pin_enn, 0);
+                Stepper_enable(b_axis.stepper);
             }
 #endif
         } break;
@@ -435,12 +433,12 @@ static void run_m_command(struct lilg_Command cmd) {
 #endif
 #ifdef HAS_A_AXIS
             if (all || LILG_FIELD(cmd, A).set) {
-                gpio_put(a_axis.pin_enn, 1);
+                Stepper_disable(a_axis.stepper);
             }
 #endif
 #ifdef HAS_B_AXIS
             if (all || LILG_FIELD(cmd, B).set) {
-                gpio_put(b_axis.pin_enn, 1);
+                Stepper_disable(b_axis.stepper);
             }
 #endif
         } break;
@@ -538,8 +536,8 @@ static void run_m_command(struct lilg_Command cmd) {
                 RotationalAxis_get_position_deg(&a_axis),
                 RotationalAxis_get_position_deg(&b_axis),
                 z_axis.actual_steps,
-                a_axis.actual_steps,
-                b_axis.actual_steps);
+                a_axis.stepper->total_steps,
+                b_axis.stepper->total_steps);
         } break;
 
         // M115 get firmware info

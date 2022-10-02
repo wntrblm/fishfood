@@ -1,7 +1,6 @@
 #include "rotational_axis.h"
 #include "config/motion.h"
 #include "drivers/tmc2209_helper.h"
-#include "hardware/gpio.h"
 #include "hardware/sync.h"
 #include <math.h>
 #include <stdio.h>
@@ -12,39 +11,10 @@
 void RotationalAxis_init(
     struct RotationalAxis* m,
     char name,
-    struct TMC2209* tmc,
-    uint32_t pin_enn,
-    uint32_t pin_dir,
-    uint32_t pin_step) {
+    struct Stepper* stepper) {
     m->name = name;
-    m->tmc = tmc;
-    m->pin_enn = pin_enn;
-    m->pin_dir = pin_dir;
-    m->pin_step = pin_step;
-    m->actual_steps = 0;
+    m->stepper = stepper;
     m->_delta_steps = 0;
-    m->_step_edge = 0;
-}
-
-bool RotationalAxis_setup(struct RotationalAxis* m) {
-    gpio_init(m->pin_enn);
-    gpio_set_dir(m->pin_enn, GPIO_OUT);
-    gpio_put(m->pin_enn, true);
-
-    gpio_init(m->pin_dir);
-    gpio_set_dir(m->pin_dir, GPIO_OUT);
-    gpio_put(m->pin_dir, false);
-
-    gpio_init(m->pin_step);
-    gpio_set_dir(m->pin_step, GPIO_OUT);
-    gpio_put(m->pin_step, false);
-
-    if (!TMC2209_write_config(m->tmc, m->pin_enn)) {
-        printf("Error configuring TMC2209 for %c axis!\n", m->name);
-        return false;
-    }
-
-    return true;
 }
 
 void RotationalAxis_start_move(volatile struct RotationalAxis* m, float dest_deg) {
@@ -52,8 +22,8 @@ void RotationalAxis_start_move(volatile struct RotationalAxis* m, float dest_deg
     int32_t delta_steps = (int32_t)(roundf(delta_deg * m->steps_per_deg));
     float actual_delta_deg = delta_steps * (1.0f / m->steps_per_deg);
 
-
     uint32_t irq_status = save_and_disable_interrupts();
+    m->stepper->direction = m->_delta_steps >= 0 ? +1 : -1;
     m->_delta_steps = delta_steps;
     m->_step_interval = 100;
     m->_next_step_at = make_timeout_time_us(m->_step_interval);
@@ -68,11 +38,11 @@ void RotationalAxis_wait_for_move(volatile struct RotationalAxis* m) {
         tight_loop_contents();
     }
 
-    printf("> %c axis moved to %0.3f (%i steps).\n", m->name, RotationalAxis_get_position_deg(m), m->actual_steps);
+    printf("> %c axis moved to %0.3f (%i steps).\n", m->name, RotationalAxis_get_position_deg(m), m->stepper->total_steps);
 }
 
 float RotationalAxis_get_position_deg(volatile struct RotationalAxis* m) {
-    return ((float)(m->actual_steps)) * (1.0f / m->steps_per_deg);
+    return ((float)(m->stepper->total_steps)) * (1.0f / m->steps_per_deg);
 }
 
 /*
@@ -88,17 +58,11 @@ void RotationalAxis_step(volatile struct RotationalAxis* m) {
         return;
     }
 
-    gpio_put(m->pin_dir, m->_delta_steps >= 0 ? 0 : 1);
-    gpio_put(m->pin_step, m->_step_edge);
-    m->_step_edge = !m->_step_edge;
-
-    if (m->_step_edge == false) {
+    if (Stepper_step(m->stepper)) {
         if (m->_delta_steps > 0) {
             m->_delta_steps--;
-            m->actual_steps++;
         } else {
             m->_delta_steps++;
-            m->actual_steps--;
         }
     }
 

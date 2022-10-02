@@ -1,7 +1,7 @@
 #pragma once
 
-#include "drivers/tmc2209.h"
 #include "pico/time.h"
+#include "stepper.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -9,31 +9,17 @@
 struct RotationalAxis {
     char name;
 
-    struct TMC2209* tmc;
-    uint32_t pin_enn;
-    uint32_t pin_dir;
-    uint32_t pin_step;
+    struct Stepper* stepper;
 
     float steps_per_deg;
 
-    int32_t actual_steps;
-
     // internal state
+    int32_t _delta_steps;
     int64_t _step_interval;
     absolute_time_t _next_step_at;
-
-    int32_t _delta_steps;
-    bool _step_edge;
 };
 
-void RotationalAxis_init(
-    struct RotationalAxis* m,
-    char name,
-    struct TMC2209* tmc,
-    uint32_t pin_enn,
-    uint32_t pin_dir,
-    uint32_t pin_step);
-bool RotationalAxis_setup(struct RotationalAxis* m);
+void RotationalAxis_init(struct RotationalAxis* m, char name, struct Stepper* stepper);
 void RotationalAxis_start_move(volatile struct RotationalAxis* m, float dest_deg);
 void RotationalAxis_wait_for_move(volatile struct RotationalAxis* m);
 void RotationalAxis_step(volatile struct RotationalAxis* m);
