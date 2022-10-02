@@ -38,7 +38,6 @@ struct M42PinTableEntry {
 #define PIN_M2_STEP     27
 #define PIN_M2_DIAG     28
 #define PIN_M2_EN       29
-#endif
 
 static const struct M42PinTableEntry M42_PIN_TABLE[] = {
     {.pin = PIN_AUX_LED, .name = "Aux LED"},
@@ -50,6 +49,7 @@ static const struct M42PinTableEntry M42_PIN_TABLE[] = {
     {.pin = PIN_BLTOUCH_CONTROL, .name = "BLTouch control"},
     {.pin = PIN_BLTOUCH_STATUS, .name = "BLTouch status"},
 };
+#endif
 
 
 #ifdef STARFISH

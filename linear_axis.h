@@ -9,6 +9,7 @@
 struct LinearAxis {
     char name;
     struct Stepper* stepper;
+    struct Stepper* stepper2;
 
     // Motion configuration. These members can be changed directly.
 
@@ -56,6 +57,9 @@ struct LinearAxis {
 
 void LinearAxis_init(
     struct LinearAxis* m, char name, struct Stepper* stepper);
+inline void LinearAxis_setup_dual(struct LinearAxis* m, struct Stepper* stepper) {
+    m->stepper2 = stepper;
+}
 void LinearAxis_home(volatile struct LinearAxis* m);
 void LinearAxis_start_move(volatile struct LinearAxis* m, float dest_mm);
 void LinearAxis_wait_for_move(volatile struct LinearAxis* m);

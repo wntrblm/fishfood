@@ -10,7 +10,6 @@
 #include "hardware/sync.h"
 #include "hardware/uart.h"
 #include "linear_axis.h"
-#include "double_linear_axis.h"
 #include "littleg/littleg.h"
 #include "pico/bootrom.h"
 #include "pico/stdlib.h"
@@ -35,7 +34,7 @@ static struct Stepper stepper1;
 static struct Stepper stepper2;
 
 static struct LinearAxis x_axis;
-static struct DoubleLinearAxis y_axis;
+static struct LinearAxis y_axis;
 static struct LinearAxis z_axis;
 static struct RotationalAxis a_axis;
 static struct RotationalAxis b_axis;
@@ -69,9 +68,23 @@ int main() {
     // Note: This should be 2, but both Jellyfish & Starfish skip address 2.
     TMC2209_init(&tmc2, TMC_UART_INST, 3, tmc_uart_read_write);
 
+    // Wait for USB connection before continuing.
+    while (!stdio_usb_connected()) {}
+
+    printf("| Starting peripheral I2C...");
+    i2c_init(MUX_I2C_INST, MUX_I2C_SPEED);
+    gpio_set_function(PIN_I2C_SDA, GPIO_FUNC_I2C);
+    gpio_set_function(PIN_I2C_SCL, GPIO_FUNC_I2C);
+
+    printf("| Starting TMC UART...\n");
+    uart_init(TMC_UART_INST, 115200);
+    gpio_set_function(PIN_UART_TX, GPIO_FUNC_UART);
+    gpio_set_function(PIN_UART_RX, GPIO_FUNC_UART);
+
 #ifdef HAS_X_AXIS
-    LinearAxis_init(&x_axis, 'X', &X_TMC, X_PIN_EN, X_PIN_DIR, X_PIN_STEP, X_PIN_DIAG);
-    x_axis.reversed = X_REVERSED;
+    Stepper_init(&X_STEPPER, &X_TMC, X_PIN_EN, X_PIN_DIR, X_PIN_STEP, X_PIN_DIAG, X_REVERSED);
+    Stepper_setup(&X_STEPPER);
+    LinearAxis_init(&x_axis, 'X', &X_STEPPER);
     x_axis.steps_per_mm = X_STEPS_PER_MM;
     x_axis.velocity_mm_s = X_DEFAULT_VELOCITY_MM_S;
     x_axis.acceleration_mm_s2 = X_DEFAULT_ACCELERATION_MM_S2;
@@ -84,20 +97,15 @@ int main() {
 #endif
 
 #ifdef HAS_Y_AXIS
-    DoubleLinearAxis_init(
+    Stepper_init(&Y1_STEPPER, &Y1_TMC, Y1_PIN_EN, Y1_PIN_DIR, Y1_PIN_STEP, Y1_PIN_DIAG, Y_REVERSED);
+    Stepper_setup(&Y1_STEPPER);
+    Stepper_init(&Y2_STEPPER, &Y2_TMC, Y2_PIN_EN, Y2_PIN_DIR, Y2_PIN_STEP, Y2_PIN_DIAG, !Y_REVERSED);
+    Stepper_setup(&Y2_STEPPER);
+    LinearAxis_init(
         &y_axis,
         'Y',
-        &Y1_TMC,
-        Y1_PIN_EN,
-        Y1_PIN_DIR,
-        Y1_PIN_STEP,
-        Y1_PIN_DIAG,
-        &Y2_TMC,
-        Y2_PIN_EN,
-        Y2_PIN_DIR,
-        Y2_PIN_STEP,
-        Y2_PIN_DIAG);
-    y_axis.reversed = Y_REVERSED;
+        &Y1_STEPPER);
+    LinearAxis_setup_dual(&y_axis, &Y2_STEPPER);
     y_axis.steps_per_mm = Y_STEPS_PER_MM;
     y_axis.velocity_mm_s = Y_DEFAULT_VELOCITY_MM_S;
     y_axis.acceleration_mm_s2 = Y_DEFAULT_ACCELERATION_MM_S2;
@@ -141,33 +149,13 @@ int main() {
     Neopixel_set_all(pixels, NUM_PIXELS, 0, 255, 0);
     Neopixel_write(pixels, NUM_PIXELS);
 
-    // Wait for USB connection before continuing.
-    while (!stdio_usb_connected()) {}
-
-    printf("| Starting peripheral I2C...");
-    i2c_init(MUX_I2C_INST, MUX_I2C_SPEED);
-    gpio_set_function(PIN_I2C_SDA, GPIO_FUNC_I2C);
-    gpio_set_function(PIN_I2C_SCL, GPIO_FUNC_I2C);
-
-    printf("| Starting TMC UART...\n");
-    uart_init(TMC_UART_INST, 115200);
-    gpio_set_function(PIN_UART_TX, GPIO_FUNC_UART);
-    gpio_set_function(PIN_UART_RX, GPIO_FUNC_UART);
-
-    printf("| Starting motors...\n");
-#ifdef HAS_X_AXIS
-    LinearAxis_setup(&x_axis);
-#endif
-#ifdef HAS_Y_AXIS
-    DoubleLinearAxis_setup(&y_axis);
-#endif
     printf("| Setting motor current...\n");
 #ifdef HAS_X_AXIS
     Stepper_set_current(x_axis.stepper, X_RUN_CURRENT, X_RUN_CURRENT * X_HOLD_CURRENT_MULTIPLIER);
 #endif
 #ifdef HAS_Y_AXIS
-    Stepper_set_current(&Y1_TMC, Y_RUN_CURRENT, Y_RUN_CURRENT * Y_HOLD_CURRENT_MULTIPLIER);
-    Stepper_set_current(&Y2_TMC, Y_RUN_CURRENT, Y_RUN_CURRENT * Y_HOLD_CURRENT_MULTIPLIER);
+    Stepper_set_current(y_axis.stepper, Y_RUN_CURRENT, Y_RUN_CURRENT * Y_HOLD_CURRENT_MULTIPLIER);
+    Stepper_set_current(y_axis.stepper2, Y_RUN_CURRENT, Y_RUN_CURRENT * Y_HOLD_CURRENT_MULTIPLIER);
 #endif
 #ifdef HAS_Z_AXIS
     Stepper_set_current(z_axis.stepper, Z_RUN_CURRENT, Z_RUN_CURRENT * Z_HOLD_CURRENT_MULTIPLIER);
@@ -177,6 +165,24 @@ int main() {
 #endif
 #ifdef HAS_B_AXIS
     Stepper_set_current(b_axis.stepper, B_RUN_CURRENT, B_RUN_CURRENT * B_HOLD_CURRENT_MULTIPLIER);
+#endif
+
+    printf("| Enabling steppers...\n");
+#ifdef HAS_X_AXIS
+    Stepper_enable(x_axis.stepper);
+#endif
+#ifdef HAS_Y_AXIS
+    Stepper_enable(y_axis.stepper);
+    Stepper_enable(y_axis.stepper2);
+#endif
+#ifdef HAS_Z_AXIS
+    Stepper_enable(z_axis.stepper);
+#endif
+#ifdef HAS_A_AXIS
+    Stepper_enable(a_axis.stepper);
+#endif
+#ifdef HAS_B_AXIS
+    Stepper_enable(b_axis.stepper);
 #endif
 
     printf("| Starting step timer...\n");
@@ -206,7 +212,7 @@ static int64_t step_timer_callback(alarm_id_t id, void* user_data) {
     LinearAxis_step(&x_axis);
 #endif
 #ifdef HAS_Y_AXIS
-    DoubleLinearAxis_step(&y_axis);
+    LinearAxis_step(&y_axis);
 #endif
 #ifdef HAS_Z_AXIS
     LinearAxis_step(&z_axis);
@@ -278,9 +284,9 @@ static void run_g_command(struct lilg_Command cmd) {
             if (cmd.Y.set) {
                 float dest_mm = lilg_Decimal_to_float(cmd.Y);
                 if (!absolute_positioning) {
-                    dest_mm = DoubleLinearAxis_get_position_mm(&y_axis) + dest_mm;
+                    dest_mm = LinearAxis_get_position_mm(&y_axis) + dest_mm;
                 }
-                DoubleLinearAxis_start_move(&y_axis, dest_mm);
+                LinearAxis_start_move(&y_axis, dest_mm);
             }
 #endif
 #ifdef HAS_Z_AXIS
@@ -319,7 +325,7 @@ static void run_g_command(struct lilg_Command cmd) {
 #endif
 #ifdef HAS_Y_AXIS
             if (cmd.Y.set) {
-                DoubleLinearAxis_wait_for_move(&y_axis);
+                LinearAxis_wait_for_move(&y_axis);
             }
 #endif
 #ifdef HAS_Z_AXIS
@@ -349,7 +355,7 @@ static void run_g_command(struct lilg_Command cmd) {
 #endif
 #ifdef HAS_Y_AXIS
             if (cmd.Y.set) {
-                DoubleLinearAxis_home(&y_axis);
+                LinearAxis_home(&y_axis);
             }
 #endif
 #ifdef HAS_Z_AXIS
@@ -385,13 +391,13 @@ static void run_m_command(struct lilg_Command cmd) {
                        (!LILG_FIELD(cmd, A).set) && (!LILG_FIELD(cmd, B).set);
 #ifdef HAS_X_AXIS
             if (all || LILG_FIELD(cmd, X).set) {
-                gpio_put(x_axis.pin_enn, 0);
+                Stepper_enable(x_axis.stepper);
             }
 #endif
 #ifdef HAS_Y_AXIS
             if (all || LILG_FIELD(cmd, Y).set) {
-                gpio_put(y_axis.pin_enn_a, 0);
-                gpio_put(y_axis.pin_enn_b, 0);
+                Stepper_enable(y_axis.stepper);
+                Stepper_enable(y_axis.stepper2);
             }
 #endif
 #ifdef HAS_Z_AXIS
@@ -417,13 +423,13 @@ static void run_m_command(struct lilg_Command cmd) {
                        (!LILG_FIELD(cmd, A).set) && (!LILG_FIELD(cmd, B).set);
 #ifdef HAS_X_AXIS
             if (all || LILG_FIELD(cmd, X).set) {
-                gpio_put(x_axis.pin_enn, 1);
+                Stepper_disable(x_axis.stepper);
             }
 #endif
 #ifdef HAS_Y_AXIS
             if (all || LILG_FIELD(cmd, Y).set) {
-                gpio_put(y_axis.pin_enn_a, 1);
-                gpio_put(y_axis.pin_enn_b, 1);
+                Stepper_disable(y_axis.stepper);
+                Stepper_disable(y_axis.stepper2);
             }
 #endif
 #ifdef HAS_Z_AXIS

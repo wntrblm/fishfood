@@ -20,7 +20,6 @@ enum HomingState {
     Forward declarations
 */
 static void setup_move(volatile struct LinearAxis* m, float dest_mm);
-static void debug_stallguard(volatile struct LinearAxis* m);
 
 /*
     Public methods
@@ -43,6 +42,8 @@ void LinearAxis_init(struct LinearAxis* m, char name, struct Stepper* stepper) {
 }
 
 void LinearAxis_home(volatile struct LinearAxis* m) {
+    // TODO: Home both motors if the axis has two!
+
     //
     // 1: Initial seek
     //
@@ -167,6 +168,9 @@ static void setup_move(volatile struct LinearAxis* m, float dest_mm) {
     // any wackiness.
     uint32_t irq_status = save_and_disable_interrupts();
     m->stepper->direction = dir;
+    if (m->stepper2 != NULL) {
+        m->stepper2->direction = dir;
+    }
     m->_accel_step_count = accel_step_count;
     m->_decel_step_count = decel_step_count;
     m->_coast_step_count = coast_step_count;
@@ -188,6 +192,9 @@ void LinearAxis_step(volatile struct LinearAxis* m) {
         return;
     }
 
+    if (m->stepper2 != NULL) {
+        Stepper_step(m->stepper2);
+    }
     if (Stepper_step(m->stepper)) {
         m->_current_step_count++;
 

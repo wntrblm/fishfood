@@ -60,6 +60,7 @@
 #ifdef STARFISH
 #define HAS_X_AXIS 1
 #define X_TMC (tmc0)
+#define X_STEPPER (stepper0)
 #define X_PIN_DIR PIN_M0_DIR
 #define X_PIN_DIAG PIN_M0_DIAG
 #define X_PIN_STEP PIN_M0_STEP
@@ -87,11 +88,13 @@
 #ifdef STARFISH
 #define HAS_Y_AXIS 1
 #define Y1_TMC (tmc1)
+#define Y1_STEPPER (stepper1)
 #define Y1_PIN_DIR PIN_M1_DIR
 #define Y1_PIN_DIAG PIN_M1_DIAG
 #define Y1_PIN_STEP PIN_M1_STEP
 #define Y1_PIN_EN PIN_M1_EN
 #define Y2_TMC (tmc2)
+#define Y2_STEPPER (stepper2)
 #define Y2_PIN_DIR PIN_M2_DIR
 #define Y2_PIN_DIAG PIN_M2_DIAG
 #define Y2_PIN_STEP PIN_M2_STEP
