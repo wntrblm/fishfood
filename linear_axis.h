@@ -1,30 +1,22 @@
 #pragma once
 
-#include "drivers/tmc2209.h"
 #include "pico/time.h"
+#include "stepper.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 struct LinearAxis {
     char name;
-
-    // hardware configuration
-    struct TMC2209* tmc;
-    uint32_t pin_enn;
-    uint32_t pin_dir;
-    uint32_t pin_step;
-    uint32_t pin_diag;
+    struct Stepper* stepper;
 
     // Motion configuration. These members can be changed directly.
-    bool reversed;
-    float steps_per_mm;
 
+    float steps_per_mm;
     // Maximum velocity in mm/s
     float velocity_mm_s;
     // Constant acceleration in mm/s^2
     float acceleration_mm_s2;
-
     // Which direction to home, either -1 for backwards or +1 for forwards.
     int8_t homing_direction;
     // How far to try to move during homing.
@@ -38,10 +30,6 @@ struct LinearAxis {
     // Higher = more sensitive.
     uint8_t homing_sensitivity;
 
-    // The actual position of the motor measured in steps. This can be used
-    // to derive the actual position in millimeters. (read only)
-    int32_t actual_steps;
-
     // internal stepping state
 
     // Note: it takes two calls to LinearAxis_step() to complete an actual motor
@@ -51,11 +39,6 @@ struct LinearAxis {
     int64_t _step_interval;
     // Time when the LinearAxis_step() will actually step.
     absolute_time_t _next_step_at;
-
-    // The state of the output pin, used to properly toggle the step output.
-    bool _step_edge;
-    // The direction the motor is going in (1 or -1).
-    int8_t _dir;
 
     // internal acceleration and velocity state for the current move.
 
@@ -75,14 +58,13 @@ struct LinearAxis {
 };
 
 void LinearAxis_init(
-    struct LinearAxis* m, char name, struct TMC2209* tmc, uint32_t pin_enn, uint32_t pin_dir, uint32_t pin_step, uint32_t pin_diag);
-bool LinearAxis_setup(struct LinearAxis* m);
+    struct LinearAxis* m, char name, struct Stepper* stepper);
 void LinearAxis_home(volatile struct LinearAxis* m);
 void LinearAxis_start_move(volatile struct LinearAxis* m, float dest_mm);
 void LinearAxis_wait_for_move(volatile struct LinearAxis* m);
 float LinearAxis_get_position_mm(volatile struct LinearAxis* m);
 inline void LinearAxis_reset_position(volatile struct LinearAxis* m) {
-    m->actual_steps = 0;
+    m->stepper->total_steps = 0;
     m->_total_step_count = 0;
     m->_current_step_count = 0;
 }

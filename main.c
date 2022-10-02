@@ -110,8 +110,9 @@ int main() {
 #endif
 
 #ifdef HAS_Z_AXIS
-    LinearAxis_init(&z_axis, 'Z', &Z_TMC, Z_PIN_EN, Z_PIN_DIR, Z_PIN_STEP, Z_PIN_DIAG);
-    z_axis.reversed = Z_REVERSED;
+    Stepper_init(&Z_STEPPER, &Z_TMC, Z_PIN_EN, Z_PIN_DIR, Z_PIN_STEP, Z_PIN_DIAG, Z_REVERSED);
+    Stepper_setup(&Z_STEPPER);
+    LinearAxis_init(&z_axis, 'Z', &Z_STEPPER);
     z_axis.steps_per_mm = Z_STEPS_PER_MM;
     z_axis.velocity_mm_s = Z_DEFAULT_VELOCITY_MM_S;
     z_axis.acceleration_mm_s2 = Z_DEFAULT_ACCELERATION_MM_S2;
@@ -124,13 +125,15 @@ int main() {
 #endif
 
 #ifdef HAS_A_AXIS
-    Stepper_init(&A_STEPPER, &A_TMC, A_PIN_EN, A_PIN_DIR, A_PIN_STEP, A_PIN_DIAG);
+    Stepper_init(&A_STEPPER, &A_TMC, A_PIN_EN, A_PIN_DIR, A_PIN_STEP, A_PIN_DIAG, false);
+    Stepper_setup(&A_STEPPER);
     RotationalAxis_init(&a_axis, 'A', &A_STEPPER);
     a_axis.steps_per_deg = A_STEPS_PER_DEG;
 #endif
 
 #ifdef HAS_B_AXIS
-    Stepper_init(&B_STEPPER, &B_TMC, B_PIN_EN, B_PIN_DIR, B_PIN_STEP, B_PIN_DIAG);
+    Stepper_init(&B_STEPPER, &B_TMC, B_PIN_EN, B_PIN_DIR, B_PIN_STEP, B_PIN_DIAG, false);
+    Stepper_setup(&B_STEPPER);
     RotationalAxis_init(&b_axis, 'B', &B_STEPPER);
     b_axis.steps_per_deg = B_STEPS_PER_DEG;
 #endif
@@ -157,9 +160,6 @@ int main() {
 #endif
 #ifdef HAS_Y_AXIS
     DoubleLinearAxis_setup(&y_axis);
-#endif
-#ifdef HAS_Z_AXIS
-    LinearAxis_setup(&z_axis);
 #endif
     printf("| Setting motor current...\n");
 #ifdef HAS_X_AXIS
@@ -396,7 +396,7 @@ static void run_m_command(struct lilg_Command cmd) {
 #endif
 #ifdef HAS_Z_AXIS
             if (all || LILG_FIELD(cmd, Z).set) {
-                gpio_put(z_axis.pin_enn, 0);
+                Stepper_enable(z_axis.stepper);
             }
 #endif
 #ifdef HAS_A_AXIS
@@ -428,7 +428,7 @@ static void run_m_command(struct lilg_Command cmd) {
 #endif
 #ifdef HAS_Z_AXIS
             if (all || LILG_FIELD(cmd, Z).set) {
-                gpio_put(z_axis.pin_enn, 1);
+                Stepper_disable(z_axis.stepper);
             }
 #endif
 #ifdef HAS_A_AXIS
@@ -535,7 +535,7 @@ static void run_m_command(struct lilg_Command cmd) {
                 LinearAxis_get_position_mm(&z_axis),
                 RotationalAxis_get_position_deg(&a_axis),
                 RotationalAxis_get_position_deg(&b_axis),
-                z_axis.actual_steps,
+                z_axis.stepper->total_steps,
                 a_axis.stepper->total_steps,
                 b_axis.stepper->total_steps);
         } break;

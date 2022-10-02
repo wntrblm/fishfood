@@ -118,6 +118,7 @@
 #ifdef JELLYFISH
 #define HAS_Z_AXIS 1
 #define Z_TMC (tmc1)
+#define Z_STEPPER (stepper1)
 #define Z_PIN_DIR PIN_M1_DIR
 #define Z_PIN_DIAG PIN_M1_DIAG
 #define Z_PIN_STEP PIN_M1_STEP

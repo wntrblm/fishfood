@@ -1,6 +1,5 @@
 #include "linear_axis.h"
 #include "config/motion.h"
-#include "drivers/tmc2209_helper.h"
 #include "hardware/gpio.h"
 #include "hardware/sync.h"
 #include <math.h>
@@ -37,23 +36,10 @@ static void debug_stallguard(volatile struct LinearAxis* m);
 void LinearAxis_init(
     struct LinearAxis* m,
     char name,
-    struct TMC2209* tmc,
-    uint32_t pin_enn,
-    uint32_t pin_dir,
-    uint32_t pin_step,
-    uint32_t pin_diag) {
+    struct Stepper* stepper) {
     m->name = name;
 
-    m->tmc = tmc;
-    m->pin_enn = pin_enn;
-    m->pin_dir = pin_dir;
-    m->pin_step = pin_step;
-    m->pin_diag = pin_diag;
-
-    m->actual_steps = 0;
-
-    m->_step_edge = 0;
-    m->_dir = 0;
+    m->stepper = stepper;
 
     m->_accel_step_count = 0;
     m->_decel_step_count = 0;
@@ -68,31 +54,6 @@ void LinearAxis_init(
     m->homing_sensitivity = 100;
 }
 
-bool LinearAxis_setup(struct LinearAxis* m) {
-    gpio_init(m->pin_enn);
-    gpio_set_dir(m->pin_enn, GPIO_OUT);
-    gpio_put(m->pin_enn, true);
-
-    gpio_init(m->pin_dir);
-    gpio_set_dir(m->pin_dir, GPIO_OUT);
-    gpio_put(m->pin_dir, false);
-
-    gpio_init(m->pin_step);
-    gpio_set_dir(m->pin_step, GPIO_OUT);
-    gpio_put(m->pin_step, false);
-
-    gpio_init(m->pin_diag);
-    gpio_set_dir(m->pin_diag, GPIO_IN);
-    gpio_pull_down(m->pin_diag);
-
-    if (!TMC2209_write_config(m->tmc, m->pin_enn)) {
-        printf("Error configuring TMC2209 for %c axis!", m->name);
-        return false;
-    }
-
-    return true;
-}
-
 void LinearAxis_home(volatile struct LinearAxis* m) {
     printf("> Homing %c axis...\n", m->name);
     printf("> Stallguard is %u\n", m->homing_sensitivity);
@@ -105,12 +66,12 @@ void LinearAxis_home(volatile struct LinearAxis* m) {
     printf("> Seeking endstop...\n");
 
     current_motor = m;
-    m->actual_steps = 0;
+    m->stepper->total_steps = 0;
 
     // TODO: At some point this needs to use a more sophisticated GPIO IRQ,
     // since the built-in picosdk only provides *one* callback for *all* gpio
     // events.
-    gpio_set_irq_enabled_with_callback(m->pin_diag, GPIO_IRQ_EDGE_RISE, true, &diag_pin_irq);
+    gpio_set_irq_enabled_with_callback(m->stepper->pin_diag, GPIO_IRQ_EDGE_RISE, true, &diag_pin_irq);
     setup_move(m, m->homing_direction * m->homing_distance_mm);
 
     // Ignore stallguard output until it's up to speed
@@ -118,7 +79,7 @@ void LinearAxis_home(volatile struct LinearAxis* m) {
         tight_loop_contents();
     }
 
-    TMC2209_write(m->tmc, TMC2209_SGTHRS, m->homing_sensitivity);
+    TMC2209_write(m->stepper->tmc, TMC2209_SGTHRS, m->homing_sensitivity);
     m->_crash_flag = false;
 
     while (!m->_crash_flag) {
@@ -130,7 +91,7 @@ void LinearAxis_home(volatile struct LinearAxis* m) {
     LinearAxis_stop(m);
 
     printf("> Endstop found, bouncing...\n");
-    TMC2209_write(m->tmc, TMC2209_SGTHRS, 0);
+    TMC2209_write(m->stepper->tmc, TMC2209_SGTHRS, 0);
     m->_crash_flag = false;
     LinearAxis_reset_position(m);
     setup_move(current_motor, -(m->homing_direction * m->homing_bounce_mm));
@@ -144,7 +105,7 @@ void LinearAxis_home(volatile struct LinearAxis* m) {
         tight_loop_contents();
     }
 
-    TMC2209_write(m->tmc, TMC2209_SGTHRS, m->homing_sensitivity);
+    TMC2209_write(m->stepper->tmc, TMC2209_SGTHRS, m->homing_sensitivity);
     m->_crash_flag = false;
 
     while (!m->_crash_flag) {
@@ -159,7 +120,7 @@ void LinearAxis_home(volatile struct LinearAxis* m) {
     LinearAxis_reset_position(m);
 
     printf("> Disabling stallguard...\n");
-    TMC2209_write(m->tmc, TMC2209_SGTHRS, 0);
+    TMC2209_write(m->stepper->tmc, TMC2209_SGTHRS, 0);
 
     m->velocity_mm_s = old_velocity;
     m->acceleration_mm_s2 = old_acceleration;
@@ -178,11 +139,11 @@ void LinearAxis_wait_for_move(volatile struct LinearAxis* m) {
         tight_loop_contents();
     }
 
-    printf("> %c axis moved to %0.3f (%i steps).\n", m->name, LinearAxis_get_position_mm(m), m->actual_steps);
+    printf("> %c axis moved to %0.3f (%i steps).\n", m->name, LinearAxis_get_position_mm(m), m->stepper->total_steps);
 }
 
 float LinearAxis_get_position_mm(volatile struct LinearAxis* m) {
-    return (float)(m->actual_steps) * (1.0f / m->steps_per_mm);
+    return (float)(m->stepper->total_steps) * (1.0f / m->steps_per_mm);
 }
 
 /*
@@ -231,10 +192,10 @@ static void setup_move(volatile struct LinearAxis* m, float dest_mm) {
     // Update motor parameters and kickoff step timer. Disable interrupts to prevent
     // any wackiness.
     uint32_t irq_status = save_and_disable_interrupts();
+    m->stepper->direction = dir;
     m->_accel_step_count = accel_step_count;
     m->_decel_step_count = decel_step_count;
     m->_coast_step_count = coast_step_count;
-    m->_dir = dir;
     m->_current_step_count = 0;
     m->_total_step_count = total_step_count;
     m->_step_interval = 1000;
@@ -260,15 +221,8 @@ void LinearAxis_step(volatile struct LinearAxis* m) {
         return;
     }
 
-    gpio_put(m->pin_dir, m->_dir == 1 ? m->reversed : !m->reversed);
-    gpio_put(m->pin_step, m->_step_edge);
-    m->_step_edge = !m->_step_edge;
-
-    // Steps happen on rising edges, so when the _step_edge is reset to false
-    // that means a rising edge was just sent.
-    if (m->_step_edge == false) {
+    if (Stepper_step(m->stepper)) {
         m->_current_step_count++;
-        m->actual_steps += m->_dir;
 
         // Is the move finished?
         if (m->_current_step_count == m->_total_step_count) {
@@ -319,6 +273,6 @@ void LinearAxis_step(volatile struct LinearAxis* m) {
 
 static void debug_stallguard(volatile struct LinearAxis* m) {
     uint32_t sg_result;
-    TMC2209_read(m->tmc, TMC2209_SG_RESULT, &sg_result);
+    TMC2209_read(m->stepper->tmc, TMC2209_SG_RESULT, &sg_result);
     printf("> SG: %u\n", sg_result);
 }
