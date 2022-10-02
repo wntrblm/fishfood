@@ -65,8 +65,26 @@ inline static bool Stepper_setup(struct Stepper* s) {
 }
 
 inline static void Stepper_disable(struct Stepper* s) { gpio_put(s->pin_enn, 1); }
-
 inline static void Stepper_enable(struct Stepper* s) { gpio_put(s->pin_enn, 0); }
+
+inline static void Stepper_set_current(struct Stepper* s, float current, float hold_current) {
+    TMC2209_set_current(s->tmc, current, hold_current);
+}
+
+inline static void Stepper_enable_stallguard(struct Stepper* s, uint8_t threshold) {
+    TMC2209_write(s->tmc, TMC2209_SGTHRS, threshold);
+}
+
+inline static void Stepper_disable_stallguard(struct Stepper* s) {
+    TMC2209_write(s->tmc, TMC2209_SGTHRS, 0);
+}
+
+inline static bool Stepper_stalled(struct Stepper* s) {
+    // TODO: At some point this might make sense to move to a GPIO IRQ,
+    // but it's annoying since the built-in picosdk only provides *one*
+    // callback for *all* gpio events.
+    return gpio_get(s->pin_diag);
+}
 
 // Note: must be called *twice* to do a complete step.
 // Returns true once a complete step has been made.

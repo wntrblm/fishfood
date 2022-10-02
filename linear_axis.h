@@ -52,9 +52,6 @@ struct LinearAxis {
     int32_t _total_step_count;
     // Number of steps taken so far.
     int32_t _current_step_count;
-
-    // Set whenever stallguard is triggered and causes the DIAG pin to rise.
-    int8_t _crash_flag;
 };
 
 void LinearAxis_init(

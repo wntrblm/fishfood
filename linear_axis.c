@@ -17,26 +17,16 @@ enum HomingState {
 };
 
 /*
-    Static variables
-*/
-volatile static struct LinearAxis* current_motor;
-
-/*
     Forward declarations
 */
 static void setup_move(volatile struct LinearAxis* m, float dest_mm);
-static bool step_timer_callback(repeating_timer_t* rt);
-static void diag_pin_irq();
 static void debug_stallguard(volatile struct LinearAxis* m);
 
 /*
     Public methods
 */
 
-void LinearAxis_init(
-    struct LinearAxis* m,
-    char name,
-    struct Stepper* stepper) {
+void LinearAxis_init(struct LinearAxis* m, char name, struct Stepper* stepper) {
     m->name = name;
 
     m->stepper = stepper;
@@ -47,80 +37,59 @@ void LinearAxis_init(
     m->_total_step_count = 0;
     m->_current_step_count = 0;
 
-    m->_crash_flag = 0;
-
     m->velocity_mm_s = 100.0f;
     m->acceleration_mm_s2 = 1000.0f;
     m->homing_sensitivity = 100;
 }
 
 void LinearAxis_home(volatile struct LinearAxis* m) {
-    printf("> Homing %c axis...\n", m->name);
-    printf("> Stallguard is %u\n", m->homing_sensitivity);
+    //
+    // 1: Initial seek
+    //
+    printf("> Homing %c axis with sensitivity at %u...\n", m->name, m->homing_sensitivity);
 
     float old_velocity = m->velocity_mm_s;
     float old_acceleration = m->acceleration_mm_s2;
     m->velocity_mm_s = m->homing_velocity_mm_s;
     m->acceleration_mm_s2 = m->homing_acceleration_mm_s2;
-
-    printf("> Seeking endstop...\n");
-
-    current_motor = m;
     m->stepper->total_steps = 0;
 
-    // TODO: At some point this needs to use a more sophisticated GPIO IRQ,
-    // since the built-in picosdk only provides *one* callback for *all* gpio
-    // events.
-    gpio_set_irq_enabled_with_callback(m->stepper->pin_diag, GPIO_IRQ_EDGE_RISE, true, &diag_pin_irq);
     setup_move(m, m->homing_direction * m->homing_distance_mm);
 
     // Ignore stallguard output until it's up to speed
-    while (m->_current_step_count < m->_accel_step_count) {
-        tight_loop_contents();
-    }
+    while (m->_current_step_count < m->_accel_step_count) { tight_loop_contents(); }
 
-    TMC2209_write(m->stepper->tmc, TMC2209_SGTHRS, m->homing_sensitivity);
-    m->_crash_flag = false;
+    Stepper_enable_stallguard(m->stepper, m->homing_sensitivity);
 
-    while (!m->_crash_flag) {
-        tight_loop_contents();
-        // sleep_ms(50);
-        // debug_stallguard(m);
-    }
+    while (!Stepper_stalled(m->stepper)) { tight_loop_contents(); }
 
     LinearAxis_stop(m);
 
+    //
+    // 2. Bounce
+    //
     printf("> Endstop found, bouncing...\n");
-    TMC2209_write(m->stepper->tmc, TMC2209_SGTHRS, 0);
-    m->_crash_flag = false;
+    Stepper_disable_stallguard(m->stepper);
     LinearAxis_reset_position(m);
-    setup_move(current_motor, -(m->homing_direction * m->homing_bounce_mm));
+    setup_move(m, -(m->homing_direction * m->homing_bounce_mm));
 
     while (LinearAxis_is_moving(m)) { tight_loop_contents(); }
 
+    //
+    // 3. Re-seek
+    //
     printf("> Re-seeking...\n");
     setup_move(m, m->homing_direction * m->homing_bounce_mm * 2);
 
-    while (m->_current_step_count < m->_accel_step_count) {
-        tight_loop_contents();
-    }
+    while (m->_current_step_count < m->_accel_step_count) { tight_loop_contents(); }
 
-    TMC2209_write(m->stepper->tmc, TMC2209_SGTHRS, m->homing_sensitivity);
-    m->_crash_flag = false;
+    Stepper_enable_stallguard(m->stepper, m->homing_sensitivity);
 
-    while (!m->_crash_flag) {
-        tight_loop_contents();
-        // sleep_ms(50);
-        // debug_stallguard(m);
-    }
+    while (!Stepper_stalled(m->stepper)) { tight_loop_contents(); }
 
     LinearAxis_stop(m);
-
-    printf("> Found! Saving home position...\n");
     LinearAxis_reset_position(m);
-
-    printf("> Disabling stallguard...\n");
-    TMC2209_write(m->stepper->tmc, TMC2209_SGTHRS, 0);
+    Stepper_disable_stallguard(m->stepper);
 
     m->velocity_mm_s = old_velocity;
     m->acceleration_mm_s2 = old_acceleration;
@@ -132,8 +101,13 @@ void LinearAxis_start_move(volatile struct LinearAxis* m, float dest_mm) { setup
 void LinearAxis_wait_for_move(volatile struct LinearAxis* m) {
     absolute_time_t report_time = make_timeout_time_ms(1000);
     while (LinearAxis_is_moving(m)) {
-        if(absolute_time_diff_us(get_absolute_time(), report_time) <= 0) {
-            printf("> Still moving, report_at=%lld, step interval=%lld next step at=%lld, steps taken=%d\n", report_time, m->_step_interval, m->_next_step_at, m->_current_step_count);
+        if (absolute_time_diff_us(get_absolute_time(), report_time) <= 0) {
+            printf(
+                "> Still moving, report_at=%lld, step interval=%lld next step at=%lld, steps taken=%d\n",
+                report_time,
+                m->_step_interval,
+                m->_next_step_at,
+                m->_current_step_count);
             report_time = make_timeout_time_ms(1000);
         }
         tight_loop_contents();
@@ -203,13 +177,6 @@ static void setup_move(volatile struct LinearAxis* m, float dest_mm) {
     restore_interrupts(irq_status);
 }
 
-static void diag_pin_irq(uint32_t pin, uint32_t events) {
-    if (current_motor == NULL) {
-        return;
-    }
-    current_motor->_crash_flag = true;
-}
-
 void LinearAxis_step(volatile struct LinearAxis* m) {
     // Are there any steps to perform?
     if (m->_total_step_count == 0) {
@@ -269,10 +236,4 @@ void LinearAxis_step(volatile struct LinearAxis* m) {
     // second pulls it high. Steps occur only on the rising edge of the STEP
     // pin.
     m->_next_step_at = make_timeout_time_us(m->_step_interval / 2);
-}
-
-static void debug_stallguard(volatile struct LinearAxis* m) {
-    uint32_t sg_result;
-    TMC2209_read(m->stepper->tmc, TMC2209_SG_RESULT, &sg_result);
-    printf("> SG: %u\n", sg_result);
 }

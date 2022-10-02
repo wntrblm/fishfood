@@ -163,20 +163,20 @@ int main() {
 #endif
     printf("| Setting motor current...\n");
 #ifdef HAS_X_AXIS
-    TMC2209_set_current(&X_TMC, X_RUN_CURRENT, X_RUN_CURRENT * X_HOLD_CURRENT_MULTIPLIER);
+    Stepper_set_current(x_axis.stepper, X_RUN_CURRENT, X_RUN_CURRENT * X_HOLD_CURRENT_MULTIPLIER);
 #endif
 #ifdef HAS_Y_AXIS
-    TMC2209_set_current(&Y1_TMC, Y_RUN_CURRENT, Y_RUN_CURRENT * Y_HOLD_CURRENT_MULTIPLIER);
-    TMC2209_set_current(&Y2_TMC, Y_RUN_CURRENT, Y_RUN_CURRENT * Y_HOLD_CURRENT_MULTIPLIER);
+    Stepper_set_current(&Y1_TMC, Y_RUN_CURRENT, Y_RUN_CURRENT * Y_HOLD_CURRENT_MULTIPLIER);
+    Stepper_set_current(&Y2_TMC, Y_RUN_CURRENT, Y_RUN_CURRENT * Y_HOLD_CURRENT_MULTIPLIER);
 #endif
 #ifdef HAS_Z_AXIS
-    TMC2209_set_current(&Z_TMC, Z_RUN_CURRENT, Z_RUN_CURRENT * Z_HOLD_CURRENT_MULTIPLIER);
+    Stepper_set_current(z_axis.stepper, Z_RUN_CURRENT, Z_RUN_CURRENT * Z_HOLD_CURRENT_MULTIPLIER);
 #endif
 #ifdef HAS_A_AXIS
-    TMC2209_set_current(&A_TMC, A_RUN_CURRENT, A_RUN_CURRENT * A_HOLD_CURRENT_MULTIPLIER);
+    Stepper_set_current(a_axis.stepper, A_RUN_CURRENT, A_RUN_CURRENT * A_HOLD_CURRENT_MULTIPLIER);
 #endif
 #ifdef HAS_B_AXIS
-    TMC2209_set_current(&B_TMC, B_RUN_CURRENT, B_RUN_CURRENT * B_HOLD_CURRENT_MULTIPLIER);
+    Stepper_set_current(b_axis.stepper, B_RUN_CURRENT, B_RUN_CURRENT * B_HOLD_CURRENT_MULTIPLIER);
 #endif
 
     printf("| Starting step timer...\n");
