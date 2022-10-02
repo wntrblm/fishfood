@@ -107,7 +107,7 @@ int main() {
 #endif
 
 #ifdef HAS_Z_AXIS
-    LinearAxis_init(&z_axis, 'Z', &Z_AXIS_TMC, Z_AXIS_PIN_EN, Z_AXIS_PIN_DIR, Z_AXIS_PIN_STEP, Z_AXIS_PIN_DIAG);
+    LinearAxis_init(&z_axis, 'Z', &Z_TMC, Z_PIN_EN, Z_PIN_DIR, Z_PIN_STEP, Z_PIN_DIAG);
     z_axis.reversed = Z_REVERSED;
     z_axis.steps_per_mm = Z_STEPS_PER_MM;
     z_axis.velocity_mm_s = Z_DEFAULT_VELOCITY_MM_S;
@@ -121,12 +121,12 @@ int main() {
 #endif
 
 #ifdef HAS_A_AXIS
-    RotationalAxis_init(&a_axis, 'A', &TMC_A, A_PIN_EN, A_PIN_DIR, A_PIN_STEP);
+    RotationalAxis_init(&a_axis, 'A', &A_TMC, A_PIN_EN, A_PIN_DIR, A_PIN_STEP);
     a_axis.steps_per_deg = A_STEPS_PER_DEG;
 #endif
 
 #ifdef HAS_B_AXIS
-    RotationalAxis_init(&b_axis, 'B', &TMC_B, B_PIN_EN, B_PIN_DIR, B_PIN_STEP);
+    RotationalAxis_init(&b_axis, 'B', &B_TMC, B_PIN_EN, B_PIN_DIR, B_PIN_STEP);
     b_axis.steps_per_deg = B_STEPS_PER_DEG;
 #endif
 

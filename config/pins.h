@@ -1,9 +1,25 @@
 #pragma once
 
+struct M42PinTableEntry {
+    uint8_t pin;
+    const uint8_t* name;
+};
+
 #ifdef JELLYFISH
-#define PIN_ACT_LED     15
 #define PIN_CAM_LED     0
-#define PIN_AUX_PIN     1
+#define PIN_AUX_OUT     1
+
+#define PIN_IN_1        2
+#define PIN_IN_2        3
+
+#define PIN_BLTOUCH_CONTROL     4
+#define PIN_BLTOUCH_STATUS      5
+
+#define PIN_I2C_SDA     10
+#define PIN_I2C_SCL     11
+
+#define PIN_AUX_LED     13
+#define PIN_ACT_LED     15
 
 #define PIN_UART_TX     16
 #define PIN_UART_RX     17
@@ -23,6 +39,18 @@
 #define PIN_M2_DIAG     28
 #define PIN_M2_EN       29
 #endif
+
+static const struct M42PinTableEntry M42_PIN_TABLE[] = {
+    {.pin = PIN_AUX_LED, .name = "Aux LED"},
+    {.pin = PIN_ACT_LED, .name = "Act LED"},
+    {.pin = PIN_AUX_OUT, .name = "Aux out"},
+    {.pin = PIN_CAM_LED, .name = "Cam led"},
+    {.pin = PIN_IN_1, .name = "In 1"},
+    {.pin = PIN_IN_2, .name = "in 2"},
+    {.pin = PIN_BLTOUCH_CONTROL, .name = "BLTouch control"},
+    {.pin = PIN_BLTOUCH_STATUS, .name = "BLTouch status"},
+};
+
 
 #ifdef STARFISH
 #define PIN_PUMP_A      0
@@ -64,11 +92,6 @@
 #define PIN_M0_DIAG     28
 #define PIN_M0_EN       29
 
-struct M42PinTableEntry {
-    uint8_t pin;
-    const uint8_t* name;
-};
-
 static const struct M42PinTableEntry M42_PIN_TABLE[] = {
     {.pin = PIN_PUMP_A, .name = "Pump A"},
     {.pin = PIN_PUMP_B, .name = "Pump B"},
@@ -82,6 +105,6 @@ static const struct M42PinTableEntry M42_PIN_TABLE[] = {
     {.pin = PIN_IN_2, .name = "in 2"},
 };
 
-static const size_t M42_PIN_TABLE_LEN = sizeof(M42_PIN_TABLE) / sizeof(M42_PIN_TABLE[0]);
-
 #endif
+
+static const size_t M42_PIN_TABLE_LEN = sizeof(M42_PIN_TABLE) / sizeof(M42_PIN_TABLE[0]);
