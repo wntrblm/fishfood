@@ -6,6 +6,20 @@
 #include <stddef.h>
 #include <stdint.h>
 
+struct LinearAxisMovement {
+    int8_t direction;
+    // Total number of steps to spend accelerating.
+    int32_t accel_step_count;
+    // Total number of steps to spend decelerating.
+    int32_t decel_step_count;
+    // Total number of steps between accelerating and decelerating.
+    int32_t coast_step_count;
+    // Total number of steps that need to be taken.
+    int32_t total_step_count;
+    // Number of steps taken so far.
+    int32_t steps_taken;
+};
+
 struct LinearAxis {
     char name;
     struct Stepper* stepper;
@@ -42,37 +56,30 @@ struct LinearAxis {
     absolute_time_t _next_step_at;
 
     // internal acceleration and velocity state for the current move.
-
-    // Total number of steps to spend accelerating.
-    int32_t _accel_step_count;
-    // Total number of steps to spend decelerating.
-    int32_t _decel_step_count;
-    // Total number of steps between accelerating and decelerating.
-    int32_t _coast_step_count;
-    // Total number of steps that need to be taken.
-    int32_t _total_step_count;
-    // Number of steps taken so far.
-    int32_t _current_step_count;
+    struct LinearAxisMovement _current_move;
 };
 
-void LinearAxis_init(
-    struct LinearAxis* m, char name, struct Stepper* stepper);
-inline void LinearAxis_setup_dual(struct LinearAxis* m, struct Stepper* stepper) {
-    m->stepper2 = stepper;
-}
+void LinearAxis_init(struct LinearAxis* m, char name, struct Stepper* stepper);
+
+inline void LinearAxis_setup_dual(struct LinearAxis* m, struct Stepper* stepper) { m->stepper2 = stepper; }
+
 void LinearAxis_home(volatile struct LinearAxis* m);
-void LinearAxis_start_move(volatile struct LinearAxis* m, float dest_mm);
+
+struct LinearAxisMovement LinearAxis_calculate_move(volatile struct LinearAxis* m, float dest_mm);
+
+void LinearAxis_start_move(volatile struct LinearAxis* m, struct LinearAxisMovement move);
+
 void LinearAxis_wait_for_move(volatile struct LinearAxis* m);
+
 float LinearAxis_get_position_mm(volatile struct LinearAxis* m);
+
 inline void LinearAxis_reset_position(volatile struct LinearAxis* m) {
     m->stepper->total_steps = 0;
-    m->_total_step_count = 0;
-    m->_current_step_count = 0;
-}
-inline bool LinearAxis_is_moving(volatile struct LinearAxis* m) { return m->_total_step_count != 0; }
-inline void LinearAxis_stop(volatile struct LinearAxis* m) {
-    m->_total_step_count = 0;
-    m->_current_step_count = 0;
+    m->_current_move = (struct LinearAxisMovement){};
 }
 
-void LinearAxis_step(volatile struct LinearAxis* m);
+inline bool LinearAxis_is_moving(volatile struct LinearAxis* m) { return m->_current_move.total_step_count != 0; }
+
+inline void LinearAxis_stop(volatile struct LinearAxis* m) { m->_current_move = (struct LinearAxisMovement){}; }
+
+bool LinearAxis_step(volatile struct LinearAxis* m);

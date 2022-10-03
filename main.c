@@ -51,6 +51,11 @@ static void run_m_command(struct lilg_Command cmd);
 int main() {
     stdio_init_all();
 
+    irq_set_priority(TIMER_IRQ_0, PICO_DEFAULT_IRQ_PRIORITY + 1);
+    irq_set_priority(TIMER_IRQ_1, PICO_DEFAULT_IRQ_PRIORITY + 1);
+    irq_set_priority(TIMER_IRQ_2, PICO_DEFAULT_IRQ_PRIORITY + 1);
+    irq_set_priority(TIMER_IRQ_3, PICO_DEFAULT_IRQ_PRIORITY + 1);
+
     gpio_init(PIN_ACT_LED);
     gpio_set_dir(PIN_ACT_LED, GPIO_OUT);
     gpio_put(PIN_ACT_LED, true);
@@ -101,10 +106,7 @@ int main() {
     Stepper_setup(&Y1_STEPPER);
     Stepper_init(&Y2_STEPPER, &Y2_TMC, Y2_PIN_EN, Y2_PIN_DIR, Y2_PIN_STEP, Y2_PIN_DIAG, !Y_REVERSED);
     Stepper_setup(&Y2_STEPPER);
-    LinearAxis_init(
-        &y_axis,
-        'Y',
-        &Y1_STEPPER);
+    LinearAxis_init(&y_axis, 'Y', &Y1_STEPPER);
     LinearAxis_setup_dual(&y_axis, &Y2_STEPPER);
     y_axis.steps_per_mm = Y_STEPS_PER_MM;
     y_axis.velocity_mm_s = Y_DEFAULT_VELOCITY_MM_S;
@@ -185,7 +187,7 @@ int main() {
     printf("| Starting step timer...\n");
     uint32_t irq_status = save_and_disable_interrupts();
     alarm_pool_t* alarm_pool = alarm_pool_get_default();
-    alarm_pool_add_alarm_at(alarm_pool, make_timeout_time_us(1000), step_timer_callback, NULL, true);
+    alarm_pool_add_alarm_at(alarm_pool, make_timeout_time_us(1000), step_timer_callback, NULL, false);
     restore_interrupts(irq_status);
 
     printf("| Ready!\n");
@@ -276,7 +278,7 @@ static void run_g_command(struct lilg_Command cmd) {
                 if (!absolute_positioning) {
                     dest_mm = LinearAxis_get_position_mm(&x_axis) + dest_mm;
                 }
-                LinearAxis_start_move(&x_axis, dest_mm);
+                LinearAxis_start_move(&x_axis, LinearAxis_calculate_move(&x_axis, dest_mm));
             }
 #endif
 #ifdef HAS_Y_AXIS
@@ -285,7 +287,7 @@ static void run_g_command(struct lilg_Command cmd) {
                 if (!absolute_positioning) {
                     dest_mm = LinearAxis_get_position_mm(&y_axis) + dest_mm;
                 }
-                LinearAxis_start_move(&y_axis, dest_mm);
+                LinearAxis_start_move(&y_axis, LinearAxis_calculate_move(&y_axis, dest_mm));
             }
 #endif
 #ifdef HAS_Z_AXIS

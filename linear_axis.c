@@ -17,28 +17,18 @@ enum HomingState {
 };
 
 /*
-    Forward declarations
-*/
-static void setup_move(volatile struct LinearAxis* m, float dest_mm);
-
-/*
     Public methods
 */
 
 void LinearAxis_init(struct LinearAxis* m, char name, struct Stepper* stepper) {
     m->name = name;
-
     m->stepper = stepper;
-
-    m->_accel_step_count = 0;
-    m->_decel_step_count = 0;
-    m->_coast_step_count = 0;
-    m->_total_step_count = 0;
-    m->_current_step_count = 0;
 
     m->velocity_mm_s = 100.0f;
     m->acceleration_mm_s2 = 1000.0f;
     m->homing_sensitivity = 100;
+
+    m->_current_move = (struct LinearAxisMovement){};
 }
 
 void LinearAxis_home(volatile struct LinearAxis* m) {
@@ -55,10 +45,10 @@ void LinearAxis_home(volatile struct LinearAxis* m) {
     m->acceleration_mm_s2 = m->homing_acceleration_mm_s2;
     m->stepper->total_steps = 0;
 
-    setup_move(m, m->homing_direction * m->homing_distance_mm);
+    LinearAxis_start_move(m, LinearAxis_calculate_move(m, m->homing_direction * m->homing_distance_mm));
 
     // Ignore stallguard output until it's up to speed
-    while (m->_current_step_count < m->_accel_step_count) { tight_loop_contents(); }
+    while (m->_current_move.steps_taken < m->_current_move.accel_step_count) { tight_loop_contents(); }
 
     Stepper_enable_stallguard(m->stepper, m->homing_sensitivity);
 
@@ -72,7 +62,7 @@ void LinearAxis_home(volatile struct LinearAxis* m) {
     printf("> Endstop found, bouncing...\n");
     Stepper_disable_stallguard(m->stepper);
     LinearAxis_reset_position(m);
-    setup_move(m, -(m->homing_direction * m->homing_bounce_mm));
+    LinearAxis_start_move(m, LinearAxis_calculate_move(m, -(m->homing_direction * m->homing_bounce_mm)));
 
     while (LinearAxis_is_moving(m)) { tight_loop_contents(); }
 
@@ -80,9 +70,10 @@ void LinearAxis_home(volatile struct LinearAxis* m) {
     // 3. Re-seek
     //
     printf("> Re-seeking...\n");
-    setup_move(m, m->homing_direction * m->homing_bounce_mm * 2);
 
-    while (m->_current_step_count < m->_accel_step_count) { tight_loop_contents(); }
+    LinearAxis_start_move(m, LinearAxis_calculate_move(m, m->homing_direction * m->homing_bounce_mm * 2));
+
+    while (m->_current_move.steps_taken < m->_current_move.accel_step_count) { tight_loop_contents(); }
 
     Stepper_enable_stallguard(m->stepper, m->homing_sensitivity);
 
@@ -97,35 +88,7 @@ void LinearAxis_home(volatile struct LinearAxis* m) {
     printf("> %c axis homing complete!\n", m->name);
 }
 
-void LinearAxis_start_move(volatile struct LinearAxis* m, float dest_mm) { setup_move(m, dest_mm); }
-
-void LinearAxis_wait_for_move(volatile struct LinearAxis* m) {
-    absolute_time_t report_time = make_timeout_time_ms(1000);
-    while (LinearAxis_is_moving(m)) {
-        if (absolute_time_diff_us(get_absolute_time(), report_time) <= 0) {
-            printf(
-                "> Still moving, report_at=%lld, step interval=%lld next step at=%lld, steps taken=%d\n",
-                report_time,
-                m->_step_interval,
-                m->_next_step_at,
-                m->_current_step_count);
-            report_time = make_timeout_time_ms(1000);
-        }
-        tight_loop_contents();
-    }
-
-    printf("> %c axis moved to %0.3f (%i steps).\n", m->name, LinearAxis_get_position_mm(m), m->stepper->total_steps);
-}
-
-float LinearAxis_get_position_mm(volatile struct LinearAxis* m) {
-    return (float)(m->stepper->total_steps) * (1.0f / m->steps_per_mm);
-}
-
-/*
-    Private methods
-*/
-
-static void setup_move(volatile struct LinearAxis* m, float dest_mm) {
+struct LinearAxisMovement LinearAxis_calculate_move(volatile struct LinearAxis* m, float dest_mm) {
     // Calculate how far to move to bring the motor to the destination.
     float delta_mm = dest_mm - LinearAxis_get_position_mm(m);
     int32_t dir = delta_mm < 0 ? -1 : 1;
@@ -164,63 +127,100 @@ static void setup_move(volatile struct LinearAxis* m, float dest_mm) {
     printf("> Velocity: %0.2f mm/2, acceleration: %0.2f mm/2^2\n", m->velocity_mm_s, m->acceleration_mm_s2);
     printf("> Steps per phase: %ld, %ld, %ld\n", accel_step_count, coast_step_count, decel_step_count);
 
+    return (struct LinearAxisMovement){
+        .direction = dir,
+        .accel_step_count = accel_step_count,
+        .decel_step_count = decel_step_count,
+        .coast_step_count = coast_step_count,
+        .total_step_count = total_step_count,
+        .steps_taken = 0,
+    };
+}
+
+void LinearAxis_start_move(volatile struct LinearAxis* m, struct LinearAxisMovement move) {
     // Update motor parameters and kickoff step timer. Disable interrupts to prevent
     // any wackiness.
     uint32_t irq_status = save_and_disable_interrupts();
-    m->stepper->direction = dir;
+
+    m->stepper->direction = move.direction;
     if (m->stepper2 != NULL) {
-        m->stepper2->direction = dir;
+        m->stepper2->direction = move.direction;
     }
-    m->_accel_step_count = accel_step_count;
-    m->_decel_step_count = decel_step_count;
-    m->_coast_step_count = coast_step_count;
-    m->_current_step_count = 0;
-    m->_total_step_count = total_step_count;
+
+    m->_current_move = move;
+
     m->_step_interval = 1000;
     m->_next_step_at = make_timeout_time_us(m->_step_interval);
     restore_interrupts(irq_status);
 }
 
-void LinearAxis_step(volatile struct LinearAxis* m) {
+void LinearAxis_wait_for_move(volatile struct LinearAxis* m) {
+    absolute_time_t report_time = make_timeout_time_ms(1000);
+    while (LinearAxis_is_moving(m)) {
+        if (absolute_time_diff_us(get_absolute_time(), report_time) <= 0) {
+            printf(
+                "> Still moving, report_at=%lld, step interval=%lld next step at=%lld, steps taken=%d/%d\n",
+                report_time,
+                m->_step_interval,
+                m->_next_step_at,
+                m->_current_move.steps_taken,
+                m->_current_move.total_step_count);
+            report_time = make_timeout_time_ms(1000);
+        }
+        tight_loop_contents();
+    }
+
+    printf("> %c axis moved to %0.3f (%i steps).\n", m->name, LinearAxis_get_position_mm(m), m->stepper->total_steps);
+}
+
+float LinearAxis_get_position_mm(volatile struct LinearAxis* m) {
+    return (float)(m->stepper->total_steps) * (1.0f / m->steps_per_mm);
+}
+
+/*
+    Private methods
+*/
+
+bool LinearAxis_step(volatile struct LinearAxis* m) {
     // Are there any steps to perform?
-    if (m->_total_step_count == 0) {
-        return;
+    if (m->_current_move.total_step_count == 0) {
+        return false;
     }
 
     // Is it time to step yet?
     if (absolute_time_diff_us(get_absolute_time(), m->_next_step_at) > 0) {
-        return;
+        return true;
     }
 
     if (m->stepper2 != NULL) {
         Stepper_step(m->stepper2);
     }
+
     if (Stepper_step(m->stepper)) {
-        m->_current_step_count++;
+        m->_current_move.steps_taken++;
 
         // Is the move finished?
-        if (m->_current_step_count == m->_total_step_count) {
-            m->_current_step_count = 0;
-            m->_total_step_count = 0;
-            return;
+        if (m->_current_move.steps_taken == m->_current_move.total_step_count) {
+            m->_current_move = (struct LinearAxisMovement){};
+            return false;
         }
 
         // Calculate instantenous velocity at the current
         // distance traveled.
-        float distance = m->_current_step_count * (1.0f / m->steps_per_mm);
+        float distance = m->_current_move.steps_taken * (1.0f / m->steps_per_mm);
         float inst_velocity;
 
         // Acceleration phase
-        if (m->_current_step_count < m->_accel_step_count) {
+        if (m->_current_move.steps_taken < m->_current_move.accel_step_count) {
             inst_velocity = sqrtf(2.0f * distance * m->acceleration_mm_s2);
         }
         // Coast phase
-        else if (m->_current_step_count < m->_accel_step_count + m->_coast_step_count) {
+        else if (m->_current_move.steps_taken < m->_current_move.accel_step_count + m->_current_move.coast_step_count) {
             inst_velocity = m->velocity_mm_s;
         }
         // Deceleration phase
         else {
-            float total_distance = m->_total_step_count * (1.0f / m->steps_per_mm);
+            float total_distance = m->_current_move.total_step_count * (1.0f / m->steps_per_mm);
             inst_velocity = sqrtf(2.0f * (total_distance - distance) * m->acceleration_mm_s2);
         }
 
@@ -243,4 +243,6 @@ void LinearAxis_step(volatile struct LinearAxis* m) {
     // second pulls it high. Steps occur only on the rising edge of the STEP
     // pin.
     m->_next_step_at = make_timeout_time_us(m->_step_interval / 2);
+
+    return true;
 }

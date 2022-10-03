@@ -6,7 +6,7 @@
 /*
     Configuration for the step timer
 */
-#define STEP_INTERVAL_US 15
+#define STEP_INTERVAL_US 20
 
 /*
     Common configuration for all TMC2209 drivers.
