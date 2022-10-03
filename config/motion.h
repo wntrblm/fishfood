@@ -39,7 +39,7 @@
     Configuration for the linear axes (X, Y, and Z).
 */
 
-#define X_REVERSED 1
+#define X_REVERSED 0
 // TODO: This value needs to be empirically validated.
 #define X_RUN_CURRENT 1.0f
 #define X_HOLD_CURRENT_MULTIPLIER 0.5f
@@ -67,7 +67,7 @@
 #define X_PIN_EN PIN_M0_EN
 #endif
 
-#define Y_REVERSED 0
+#define Y_REVERSED 1
 // TODO: This value needs to be empirically validated.
 #define Y_RUN_CURRENT 1.0f
 #define Y_HOLD_CURRENT_MULTIPLIER 0.3f

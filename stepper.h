@@ -95,6 +95,7 @@ inline static bool Stepper_step(struct Stepper* s) {
 
     if (s->_step_edge == false) {
         s->total_steps += s->direction;
+        return true;
     } else {
         return false;
     }

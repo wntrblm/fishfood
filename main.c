@@ -146,9 +146,6 @@ int main() {
     b_axis.steps_per_deg = B_STEPS_PER_DEG;
 #endif
 
-    Neopixel_set_all(pixels, NUM_PIXELS, 0, 255, 0);
-    Neopixel_write(pixels, NUM_PIXELS);
-
     printf("| Setting motor current...\n");
 #ifdef HAS_X_AXIS
     Stepper_set_current(x_axis.stepper, X_RUN_CURRENT, X_RUN_CURRENT * X_HOLD_CURRENT_MULTIPLIER);
@@ -208,6 +205,7 @@ int main() {
 }
 
 static int64_t step_timer_callback(alarm_id_t id, void* user_data) {
+    gpio_put(PIN_AUX_LED, true);
 #ifdef HAS_X_AXIS
     LinearAxis_step(&x_axis);
 #endif
@@ -223,6 +221,7 @@ static int64_t step_timer_callback(alarm_id_t id, void* user_data) {
 #ifdef HAS_B_AXIS
     RotationalAxis_step(&b_axis);
 #endif
+    gpio_put(PIN_AUX_LED, false);
     return STEP_INTERVAL_US;
 }
 
