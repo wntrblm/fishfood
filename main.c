@@ -5,6 +5,8 @@
 #include "drivers/tmc2209.h"
 #include "drivers/tmc2209_helper.h"
 #include "drivers/tmc_uart.h"
+#include "drivers/xgzp6857d.h"
+#include "drivers/pca9495a.h"
 #include "hardware/gpio.h"
 #include "hardware/i2c.h"
 #include "hardware/sync.h"
@@ -628,47 +630,12 @@ static void run_m_command(struct lilg_Command cmd) {
         case 263: {
             uint8_t which = LILG_FIELD(cmd, P).real == 0 ? 0x08 : 0x04;
 
-            // Configure the MUX.
-            uint8_t buf[2] = {which, 0x00};
-            int result = i2c_write_timeout_us(PERIPH_I2C_INST, 0x58, buf, 1, false, PERIPH_I2C_TIMEOUT);
-
-            if (result < 0) {
+            if (pca9495a_switch_channel(PERIPH_I2C_INST, I2C_MUX_ADDR, which, PERIPH_I2C_TIMEOUT) < 0) {
                 printf("! Failed to change I2C multiplexer configuration.\n");
                 return;
             }
 
-            // Configure the measurement parameters.
-            buf[0] = 0x30;
-            buf[1] = 0x0A;
-            result = i2c_write_timeout_us(PERIPH_I2C_INST, 0x6D, buf, 2, false, PERIPH_I2C_TIMEOUT);
-
-            if (result < 0) {
-                printf("! Failed to setup measurement.\n");
-                return;
-            }
-
-            // Wait a bit... 20ms according to datasheet. Alternatively, readback
-            // the 0x30 register and check for bit 3 to be clear.
-            sleep_ms(25);
-
-            // Read each byte needed to form the 24 bit pressure value.
-            uint32_t pressure = 0;
-
-            buf[0] = 0x06;
-            i2c_write_timeout_us(PERIPH_I2C_INST, 0x6D, buf, 1, false, PERIPH_I2C_TIMEOUT);
-            i2c_read_timeout_us(PERIPH_I2C_INST, 0x6D, buf, 1, false, PERIPH_I2C_TIMEOUT);
-            pressure = buf[0] << 16;
-
-            buf[0] = 0x07;
-            i2c_write_timeout_us(PERIPH_I2C_INST, 0x6D, buf, 1, false, PERIPH_I2C_TIMEOUT);
-            i2c_read_timeout_us(PERIPH_I2C_INST, 0x6D, buf, 1, false, PERIPH_I2C_TIMEOUT);
-            pressure = pressure | (buf[0] << 8);
-
-            buf[0] = 0x08;
-            i2c_write_timeout_us(PERIPH_I2C_INST, 0x6D, buf, 1, false, PERIPH_I2C_TIMEOUT);
-            i2c_read_timeout_us(PERIPH_I2C_INST, 0x6D, buf, 1, false, PERIPH_I2C_TIMEOUT);
-            pressure = pressure | buf[0];
-
+            int32_t pressure = XGZP6857D_read(PERIPH_I2C_INST, PERIPH_I2C_TIMEOUT);
             printf("> Pressure: %u\n", pressure);
         } break;
 

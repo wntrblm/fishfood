@@ -22,6 +22,7 @@ add_executable(picostep
   drivers/tmc2209_helper.c
   drivers/tmc_uart.c
   drivers/neopixel.c
+  drivers/xgzp6857d.c
   littleg/littleg.c
 )
 
