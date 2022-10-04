@@ -54,8 +54,9 @@ int main() {
 
     // Wait for USB connection before continuing.
     while (!stdio_usb_connected()) {}
+    sleep_ms(1000);
 
-    printf("| Starting I2C peripheral bus...");
+    printf("| Starting I2C peripheral bus...\n");
     i2c_init(PERIPH_I2C_INST, PERIPH_I2C_SPEED);
     gpio_set_function(PIN_I2C_SDA, GPIO_FUNC_I2C);
     gpio_set_function(PIN_I2C_SCL, GPIO_FUNC_I2C);
@@ -66,7 +67,8 @@ int main() {
     gpio_set_function(PIN_UART_TX, GPIO_FUNC_UART);
     gpio_set_function(PIN_UART_RX, GPIO_FUNC_UART);
 
-    printf("| Configuring steppers...\n");
+    printf("| Configuring motion and stepper motors...\n");
+    // TODO: Check for errors!
     Machine_init(&machine);
     Machine_setup(&machine);
 
@@ -95,7 +97,9 @@ int main() {
     printf("! Main loop exited due to end of file on stdin\n");
 }
 
-static int64_t step_timer_callback(alarm_id_t id, void* user_data) { return Machine_step(&machine); }
+static int64_t step_timer_callback(alarm_id_t id, void* user_data) {
+    return Machine_step(&machine);
+}
 
 static void process_incoming_char(char c) {
     static struct lilg_Command cmd = {};
