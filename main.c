@@ -92,7 +92,7 @@ int main() {
     gpio_set_function(PIN_UART_TX, GPIO_FUNC_UART);
     gpio_set_function(PIN_UART_RX, GPIO_FUNC_UART);
 
-#ifdef HAS_X_AXIS
+#ifdef HAS_XY_AXES
     Stepper_init(&X_STEPPER, &X_TMC, X_PIN_EN, X_PIN_DIR, X_PIN_STEP, X_PIN_DIAG, X_REVERSED);
     Stepper_setup(&X_STEPPER);
     LinearAxis_init(&x_axis, 'X', &X_STEPPER);
@@ -105,9 +105,7 @@ int main() {
     x_axis.homing_velocity_mm_s = X_HOMING_VELOCITY_MM_S;
     x_axis.homing_acceleration_mm_s2 = X_HOMING_ACCELERATION_MM_S2;
     x_axis.homing_sensitivity = X_HOMING_SENSITIVITY;
-#endif
 
-#ifdef HAS_Y_AXIS
     Stepper_init(&Y1_STEPPER, &Y1_TMC, Y1_PIN_EN, Y1_PIN_DIR, Y1_PIN_STEP, Y1_PIN_DIAG, Y_REVERSED);
     Stepper_setup(&Y1_STEPPER);
     Stepper_init(&Y2_STEPPER, &Y2_TMC, Y2_PIN_EN, Y2_PIN_DIR, Y2_PIN_STEP, Y2_PIN_DIAG, !Y_REVERSED);
@@ -155,10 +153,8 @@ int main() {
 #endif
 
     printf("| Setting motor current...\n");
-#ifdef HAS_X_AXIS
+#ifdef HAS_XY_AXES
     Stepper_set_current(x_axis.stepper, X_RUN_CURRENT, X_RUN_CURRENT * X_HOLD_CURRENT_MULTIPLIER);
-#endif
-#ifdef HAS_Y_AXIS
     Stepper_set_current(y_axis.stepper, Y_RUN_CURRENT, Y_RUN_CURRENT * Y_HOLD_CURRENT_MULTIPLIER);
     Stepper_set_current(y_axis.stepper2, Y_RUN_CURRENT, Y_RUN_CURRENT * Y_HOLD_CURRENT_MULTIPLIER);
 #endif
@@ -173,10 +169,8 @@ int main() {
 #endif
 
     printf("| Enabling steppers...\n");
-#ifdef HAS_X_AXIS
+#ifdef HAS_XY_AXES
     Stepper_enable(x_axis.stepper);
-#endif
-#ifdef HAS_Y_AXIS
     Stepper_enable(y_axis.stepper);
     Stepper_enable(y_axis.stepper2);
 #endif
@@ -214,7 +208,7 @@ int main() {
 
 static int64_t step_timer_callback(alarm_id_t id, void* user_data) {
     gpio_put(PIN_AUX_LED, true);
-#if defined(HAS_X_AXIS) && defined(HAS_Y_AXIS)
+#ifdef HAS_XY_AXES
     if(coordinated_move) {
         LinearAxis_step(major_axis);
         if(Bresenham_step(&bresenham)) {
@@ -283,7 +277,7 @@ static void run_g_command(struct lilg_Command cmd) {
                 z_axis.velocity_mm_s = mm_per_min / 60.0f;
             }
 
-#if defined(HAS_X_AXIS) && defined(HAS_Y_AXIS)
+#ifdef HAS_XY_AXES
             float x_dest_mm = lilg_Decimal_to_float(cmd.X);
             float y_dest_mm = lilg_Decimal_to_float(cmd.Y);
             if (!absolute_positioning) {
@@ -350,12 +344,10 @@ static void run_g_command(struct lilg_Command cmd) {
 #endif
 
             // Wait for all axes to finish moving.
-#ifdef HAS_X_AXIS
+#ifdef HAS_XY_AXES
             if (cmd.X.set) {
                 LinearAxis_wait_for_move(&x_axis);
             }
-#endif
-#ifdef HAS_Y_AXIS
             if (cmd.Y.set) {
                 LinearAxis_wait_for_move(&y_axis);
             }
@@ -380,12 +372,10 @@ static void run_g_command(struct lilg_Command cmd) {
         // Home axes
         // https://marlinfw.org/docs/gcode/G28.html
         case 28: {
-#ifdef HAS_X_AXIS
+#ifdef HAS_XY_AXES
             if (cmd.X.set) {
                 LinearAxis_home(&x_axis);
             }
-#endif
-#ifdef HAS_Y_AXIS
             if (cmd.Y.set) {
                 LinearAxis_home(&y_axis);
             }
@@ -421,12 +411,10 @@ static void run_m_command(struct lilg_Command cmd) {
         case 17: {
             bool all = ((!LILG_FIELD(cmd, X).set) && (!LILG_FIELD(cmd, Y).set) && !LILG_FIELD(cmd, Z).set) &&
                        (!LILG_FIELD(cmd, A).set) && (!LILG_FIELD(cmd, B).set);
-#ifdef HAS_X_AXIS
+#ifdef HAS_XY_AXES
             if (all || LILG_FIELD(cmd, X).set) {
                 Stepper_enable(x_axis.stepper);
             }
-#endif
-#ifdef HAS_Y_AXIS
             if (all || LILG_FIELD(cmd, Y).set) {
                 Stepper_enable(y_axis.stepper);
                 Stepper_enable(y_axis.stepper2);
@@ -453,12 +441,10 @@ static void run_m_command(struct lilg_Command cmd) {
         case 18: {
             bool all = ((!LILG_FIELD(cmd, X).set) && (!LILG_FIELD(cmd, Y).set) && !LILG_FIELD(cmd, Z).set) &&
                        (!LILG_FIELD(cmd, A).set) && (!LILG_FIELD(cmd, B).set);
-#ifdef HAS_X_AXIS
+#ifdef HAS_XY_AXES
             if (all || LILG_FIELD(cmd, X).set) {
                 Stepper_disable(x_axis.stepper);
             }
-#endif
-#ifdef HAS_Y_AXIS
             if (all || LILG_FIELD(cmd, Y).set) {
                 Stepper_disable(y_axis.stepper);
                 Stepper_disable(y_axis.stepper2);
@@ -609,11 +595,9 @@ static void run_m_command(struct lilg_Command cmd) {
             float reported_accel = 0;
             if (LILG_FIELD(cmd, T).set) {
                 float accel = lilg_Decimal_to_float(LILG_FIELD(cmd, T));
-#ifdef HAS_X_AXIS
+#ifdef HAS_XY_AXES
                 x_axis.acceleration_mm_s2 = accel;
                 reported_accel = accel;
-#endif
-#ifdef HAS_Y_AXIS
                 y_axis.acceleration_mm_s2 = accel;
                 reported_accel = accel;
 #endif
@@ -806,13 +790,11 @@ static void run_m_command(struct lilg_Command cmd) {
         // M906 Set motor current
         // https://marlinfw.org/docs/gcode/M906.html
         case 906: {
-#ifdef HAS_X_AXIS
+#ifdef HAS_XY_AXES
             if (cmd.X.set) {
                 float current = lilg_Decimal_to_float(cmd.X);
                 TMC2209_set_current(&X_TMC, current, current * X_HOLD_CURRENT_MULTIPLIER);
             }
-#endif
-#ifdef HAS_Y_AXIS
             if (cmd.Y.set) {
                 float current = lilg_Decimal_to_float(cmd.Y);
                 TMC2209_set_current(&Y1_TMC, current, current * Y_HOLD_CURRENT_MULTIPLIER);
@@ -842,12 +824,10 @@ static void run_m_command(struct lilg_Command cmd) {
         // M914 Set bump sensitivity
         // https://marlinfw.org/docs/gcode/M914.html
         case 914: {
-#ifdef HAS_X_AXIS
+#ifdef HAS_XY_AXES
             if (cmd.X.set) {
                 x_axis.homing_sensitivity = cmd.X.real;
             }
-#endif
-#ifdef HAS_Y_AXIS
             if (cmd.Y.set) {
                 y_axis.homing_sensitivity = cmd.Y.real;
             }
@@ -858,10 +838,8 @@ static void run_m_command(struct lilg_Command cmd) {
             }
 #endif
             printf("> ");
-#ifdef HAS_X_AXIS
+#ifdef HAS_XY_AXES
             printf("X:%u ", x_axis.homing_sensitivity);
-#endif
-#ifdef HAS_Y_AXIS
             printf("Y:%u ", y_axis.homing_sensitivity);
 #endif
 #ifdef HAS_Z_AXIS
