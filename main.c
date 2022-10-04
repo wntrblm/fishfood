@@ -630,7 +630,7 @@ static void run_m_command(struct lilg_Command cmd) {
 
             // Configure the MUX.
             uint8_t buf[2] = {which, 0x00};
-            int result = i2c_write_timeout_us(MUX_I2C_INST, 0x58, buf, 1, false, MUX_I2C_TIMEOUT);
+            int result = i2c_write_timeout_us(PERIPH_I2C_INST, 0x58, buf, 1, false, PERIPH_I2C_TIMEOUT);
 
             if (result < 0) {
                 printf("! Failed to change I2C multiplexer configuration.\n");
@@ -640,7 +640,7 @@ static void run_m_command(struct lilg_Command cmd) {
             // Configure the measurement parameters.
             buf[0] = 0x30;
             buf[1] = 0x0A;
-            result = i2c_write_timeout_us(MUX_I2C_INST, 0x6D, buf, 2, false, MUX_I2C_TIMEOUT);
+            result = i2c_write_timeout_us(PERIPH_I2C_INST, 0x6D, buf, 2, false, PERIPH_I2C_TIMEOUT);
 
             if (result < 0) {
                 printf("! Failed to setup measurement.\n");
@@ -655,18 +655,18 @@ static void run_m_command(struct lilg_Command cmd) {
             uint32_t pressure = 0;
 
             buf[0] = 0x06;
-            i2c_write_timeout_us(MUX_I2C_INST, 0x6D, buf, 1, false, MUX_I2C_TIMEOUT);
-            i2c_read_timeout_us(MUX_I2C_INST, 0x6D, buf, 1, false, MUX_I2C_TIMEOUT);
+            i2c_write_timeout_us(PERIPH_I2C_INST, 0x6D, buf, 1, false, PERIPH_I2C_TIMEOUT);
+            i2c_read_timeout_us(PERIPH_I2C_INST, 0x6D, buf, 1, false, PERIPH_I2C_TIMEOUT);
             pressure = buf[0] << 16;
 
             buf[0] = 0x07;
-            i2c_write_timeout_us(MUX_I2C_INST, 0x6D, buf, 1, false, MUX_I2C_TIMEOUT);
-            i2c_read_timeout_us(MUX_I2C_INST, 0x6D, buf, 1, false, MUX_I2C_TIMEOUT);
+            i2c_write_timeout_us(PERIPH_I2C_INST, 0x6D, buf, 1, false, PERIPH_I2C_TIMEOUT);
+            i2c_read_timeout_us(PERIPH_I2C_INST, 0x6D, buf, 1, false, PERIPH_I2C_TIMEOUT);
             pressure = pressure | (buf[0] << 8);
 
             buf[0] = 0x08;
-            i2c_write_timeout_us(MUX_I2C_INST, 0x6D, buf, 1, false, MUX_I2C_TIMEOUT);
-            i2c_read_timeout_us(MUX_I2C_INST, 0x6D, buf, 1, false, MUX_I2C_TIMEOUT);
+            i2c_write_timeout_us(PERIPH_I2C_INST, 0x6D, buf, 1, false, PERIPH_I2C_TIMEOUT);
+            i2c_read_timeout_us(PERIPH_I2C_INST, 0x6D, buf, 1, false, PERIPH_I2C_TIMEOUT);
             pressure = pressure | buf[0];
 
             printf("> Pressure: %u\n", pressure);

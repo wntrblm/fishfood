@@ -1,9 +1,9 @@
 #include <stdio.h>
-#include "i2c_commands.h"
 #include "config/pins.h"
 #include "hardware/gpio.h"
 #include "hardware/i2c.h"
 #include "wntr_pack.h"
+#include "i2c_commands.h"
 
 /*
     Public methods
@@ -13,7 +13,7 @@ void i2c_commands_init(struct I2CCommandsState* s) {
     s->_addr = 0;
     s->_idx = 0;
 
-    i2c_init(MUX_I2C_INST, MUX_I2C_SPEED);
+    i2c_init(PERIPH_I2C_INST, PERIPH_I2C_SPEED);
     gpio_set_function(PIN_I2C_SDA, GPIO_FUNC_I2C);
     gpio_set_function(PIN_I2C_SCL, GPIO_FUNC_I2C);
 };
@@ -30,7 +30,7 @@ void i2c_commands_m260_send(struct I2CCommandsState* s, const struct lilg_Comman
     }
 
     if (LILG_FIELD(cmd, B).set) {
-        if (s->_idx == MUX_I2C_BUF_LEN - 1) {
+        if (s->_idx == PERIPH_I2C_BUF_LEN - 1) {
             printf("! i2c data buffer full\n");
             return;
         }
@@ -43,7 +43,7 @@ void i2c_commands_m260_send(struct I2CCommandsState* s, const struct lilg_Comman
 
     if (LILG_FIELD(cmd, S).set) {
         printf("> i2c sending %u bytes to %u...", s->_idx, s->_addr);
-        int result = i2c_write_timeout_us(MUX_I2C_INST, s->_addr, s->_data, s->_idx, false, MUX_I2C_TIMEOUT);
+        int result = i2c_write_timeout_us(PERIPH_I2C_INST, s->_addr, s->_data, s->_idx, false, PERIPH_I2C_TIMEOUT);
 
         s->_idx = 0;
 
@@ -73,12 +73,12 @@ void i2c_commands_m261_request(struct I2CCommandsState* s, const struct lilg_Com
         printf("! Can not read zero bytes, set the B field to >= 1\n");
         return;
     }
-    if (count > MUX_I2C_BUF_LEN) {
-        printf("! Can not read more than %u bytes\n", MUX_I2C_BUF_LEN);
+    if (count > PERIPH_I2C_BUF_LEN) {
+        printf("! Can not read more than %u bytes\n", PERIPH_I2C_BUF_LEN);
         return;
     }
 
-    int result = i2c_read_timeout_us(MUX_I2C_INST, addr, s->_data, count, false, MUX_I2C_TIMEOUT);
+    int result = i2c_read_timeout_us(PERIPH_I2C_INST, addr, s->_data, count, false, PERIPH_I2C_TIMEOUT);
 
     if (result == PICO_ERROR_GENERIC) {
         printf("! Failed, device 0x%2X not present or not responding\n", addr);
@@ -132,7 +132,7 @@ void i2c_commands_m262_scan() {
         }
 
         uint8_t out[] = {0};
-        int result = i2c_read_timeout_us(MUX_I2C_INST, addr, out, 1, false, MUX_I2C_TIMEOUT);
+        int result = i2c_read_timeout_us(PERIPH_I2C_INST, addr, out, 1, false, PERIPH_I2C_TIMEOUT);
 
         if (result < 0) {
             printf("> 0x%2X: no response\n", addr);

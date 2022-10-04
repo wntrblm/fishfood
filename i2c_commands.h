@@ -5,7 +5,7 @@
 
 struct I2CCommandsState {
     uint8_t _addr;
-    uint8_t _data[MUX_I2C_BUF_LEN];
+    uint8_t _data[PERIPH_I2C_BUF_LEN];
     size_t _idx;
 };
 
