@@ -4,6 +4,7 @@
 #include "hardware/sync.h"
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 /*
     Macros and constants
@@ -90,12 +91,14 @@ void LinearAxis_home(volatile struct LinearAxis* m) {
 
 struct LinearAxisMovement LinearAxis_calculate_move(volatile struct LinearAxis* m, float dest_mm) {
     // Calculate how far to move to bring the motor to the destination.
-    float delta_mm = dest_mm - LinearAxis_get_position_mm(m);
-    int32_t dir = delta_mm < 0 ? -1 : 1;
+    // Do the calculation based on steps (integers) instead of mm (floats) to
+    // ensure consistency.
+    int32_t dest_steps = (int32_t)(lroundf(dest_mm * m->steps_per_mm));
+    int32_t delta_steps = dest_steps - m->stepper->total_steps;
+    int32_t dir = delta_steps < 0 ? -1 : 1;
 
     // Determine the number of steps needed to complete the move.
-    float delta_mm_abs = fabs(delta_mm);
-    int32_t total_step_count = (int32_t)(lroundf(delta_mm_abs * m->steps_per_mm));
+    int32_t total_step_count = abs(delta_steps);
 
     // Determine how long acceleration and deceleration will take and
     // how many steps will be spent in each of the three phases (accelerating,
@@ -119,13 +122,6 @@ struct LinearAxisMovement LinearAxis_calculate_move(volatile struct LinearAxis* 
         decel_step_count = total_step_count - accel_step_count;
         coast_step_count = 0;
     }
-
-    // Calculate the *actual* distance that the motor will move based on the
-    // stepping resolution.
-    float actual_delta_mm = dir * total_step_count * (1.0f / m->steps_per_mm);
-    printf("> Moving %c axis %0.3f mm (%i steps)\n", m->name, actual_delta_mm, dir * total_step_count);
-    printf("> Velocity: %0.2f mm/2, acceleration: %0.2f mm/2^2\n", m->velocity_mm_s, m->acceleration_mm_s2);
-    printf("> Steps per phase: %ld, %ld, %ld\n", accel_step_count, coast_step_count, decel_step_count);
 
     return (struct LinearAxisMovement){
         .direction = dir,
@@ -152,20 +148,27 @@ void LinearAxis_start_move(volatile struct LinearAxis* m, struct LinearAxisMovem
     m->_step_interval = 1000;
     m->_next_step_at = make_timeout_time_us(m->_step_interval);
     restore_interrupts(irq_status);
+
+    // Calculate the *actual* distance that the motor will move based on the
+    // stepping resolution.
+    float actual_delta_mm = move.direction * move.total_step_count * (1.0f / m->steps_per_mm);
+    printf("> Moving %c axis %0.3f mm (%i steps)\n", m->name, actual_delta_mm, move.direction * move.total_step_count);
 }
 
 void LinearAxis_wait_for_move(volatile struct LinearAxis* m) {
+    if (!LinearAxis_is_moving(m)) {
+        return;
+    }
+
     absolute_time_t report_time = make_timeout_time_ms(1000);
+
     while (LinearAxis_is_moving(m)) {
         if (absolute_time_diff_us(get_absolute_time(), report_time) <= 0) {
             printf(
-                "> Still moving, report_at=%lld, step interval=%lld next step at=%lld, steps taken=%d/%d\n",
-                report_time,
-                m->_step_interval,
-                m->_next_step_at,
+                "> Still moving, steps taken: %d/%d\n",
                 m->_current_move.steps_taken,
                 m->_current_move.total_step_count);
-            report_time = make_timeout_time_ms(1000);
+            report_time = make_timeout_time_ms(2000);
         }
         tight_loop_contents();
     }
