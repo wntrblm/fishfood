@@ -1,26 +1,28 @@
 #pragma once
 
+#include <stdbool.h>
+#include <stdint.h>
 
 struct Bresenham {
     // start point
-    int x0;
-    int y0;
+    int32_t x0;
+    int32_t y0;
     // end point
-    int x1;
-    int y1;
+    int32_t x1;
+    int32_t y1;
 
     // distance on each axis
-    int _dx;
-    int _dy;
+    int32_t _dx;
+    int32_t _dy;
 
     // error accumulator
-    int _diff;
-    int _y;
+    int32_t _diff;
+    int32_t _y;
 };
 
 // This assumes X is always the major axis (the one moving the most) and X
 // is always positive.
-void Bresenham_init(struct Bresenham* b, int x0, int y0, int x1, int y1) {
+static inline void Bresenham_init(struct Bresenham* b, int32_t x0, int32_t y0, int32_t x1, int32_t y1) {
     b->x0 = x0;
     b->y0 = y0;
     b->x1 = x1;
@@ -37,10 +39,10 @@ void Bresenham_init(struct Bresenham* b, int x0, int y0, int x1, int y1) {
     b->_y = y0;
 };
 
-bool Bresenham_step(struct Bresenham* b) {
+static inline bool Bresenham_step(struct Bresenham* b) {
     bool stepped = false;
 
-    if(b->_diff > 0) {
+    if (b->_diff > 0) {
         stepped = true;
         b->_y += 1;
         b->_diff -= 2 * b->_dx;
