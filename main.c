@@ -16,6 +16,7 @@
 #include "pico/time.h"
 #include "rotational_axis.h"
 #include "bresenham.h"
+#include "i2c_commands.h"
 #include "wntr_pack.h"
 #include <math.h>
 #include <stdio.h>
@@ -23,9 +24,7 @@
 #define NUM_PIXELS 8
 static uint8_t pixels[3 * NUM_PIXELS];
 
-static uint8_t mux_i2c_target_addr = 0x00;
-static uint8_t mux_i2c_buf[MUX_I2C_BUF_LEN];
-static size_t mux_i2c_buf_idx = 0;
+static struct I2CCommandsState i2c_commands_state;
 
 static struct TMC2209 tmc0;
 static struct TMC2209 tmc1;
@@ -82,10 +81,8 @@ int main() {
     // Wait for USB connection before continuing.
     while (!stdio_usb_connected()) {}
 
-    printf("| Starting peripheral I2C...");
-    i2c_init(MUX_I2C_INST, MUX_I2C_SPEED);
-    gpio_set_function(PIN_I2C_SDA, GPIO_FUNC_I2C);
-    gpio_set_function(PIN_I2C_SCL, GPIO_FUNC_I2C);
+    printf("| Starting I2C peripheral bus...");
+    i2c_commands_init(&i2c_commands_state);
 
     printf("| Starting TMC UART...\n");
     uart_init(TMC_UART_INST, 115200);
@@ -612,130 +609,18 @@ static void run_m_command(struct lilg_Command cmd) {
         // M260 I2C Send
         // https://marlinfw.org/docs/gcode/M260.html
         case 260: {
-            if (LILG_FIELD(cmd, A).set) {
-                mux_i2c_target_addr = LILG_FIELD(cmd, A).real;
-                printf("> i2c A:0x%02X\n", mux_i2c_target_addr);
-            }
-
-            if (LILG_FIELD(cmd, B).set) {
-                if (mux_i2c_buf_idx == MUX_I2C_BUF_LEN - 1) {
-                    printf("! i2c buffer full\n");
-                    return;
-                }
-
-                uint8_t byte = LILG_FIELD(cmd, B).real;
-                mux_i2c_buf[mux_i2c_buf_idx] = byte;
-                printf("> i2c buffer[%u]: %u\n", mux_i2c_buf_idx, byte);
-                mux_i2c_buf_idx++;
-            }
-
-            if (LILG_FIELD(cmd, R).set) {
-                mux_i2c_buf_idx = 0;
-                printf("> i2c buffer reset\n");
-            }
-
-            if (LILG_FIELD(cmd, S).set) {
-                printf("> i2c sending %u bytes to %u...\n", mux_i2c_buf_idx, mux_i2c_target_addr);
-                int result = i2c_write_timeout_us(
-                    MUX_I2C_INST, mux_i2c_target_addr, mux_i2c_buf, mux_i2c_buf_idx, false, MUX_I2C_TIMEOUT);
-
-                mux_i2c_buf_idx = 0;
-
-                if (result == PICO_ERROR_GENERIC) {
-                    printf("! Failed, device not present or not responding.\n");
-                    return;
-                }
-                if (result == PICO_ERROR_TIMEOUT) {
-                    printf("! Failed, timeout exceeded.\n");
-                    return;
-                }
-            }
+            i2c_commands_m260_send(&i2c_commands_state, cmd);
         } break;
 
         // M261 I2C Request
         case 261: {
-            uint8_t addr = LILG_FIELD(cmd, A).set ? LILG_FIELD(cmd, A).real : mux_i2c_target_addr;
-            size_t count = LILG_FIELD(cmd, B).real;
-            uint8_t style = LILG_FIELD(cmd, S).real;
-
-            if (addr == 0) {
-                printf("! No address specified in the A field\n");
-                return;
-            }
-            if (count < 1) {
-                printf("! Can not read zero bytes, set the B field to >= 1\n");
-                return;
-            }
-            if (count > MUX_I2C_BUF_LEN) {
-                printf("! Can not read more than %u bytes\n", MUX_I2C_BUF_LEN);
-                return;
-            }
-
-            int result = i2c_read_timeout_us(MUX_I2C_INST, addr, mux_i2c_buf, count, false, MUX_I2C_TIMEOUT);
-
-            if (result == PICO_ERROR_GENERIC) {
-                printf("! Failed, device 0x%2X not present or not responding\n", addr);
-                return;
-            }
-            if (result == PICO_ERROR_TIMEOUT) {
-                printf("! Failed, timeout exceeded\n");
-                return;
-            }
-            if (result < 0) {
-                printf("! Failed, unknown error %i occurred\n", result);
-            }
-
-            size_t bytes_read = result;
-
-            printf("> i2c reply: from:%u bytes:%u data:", addr, bytes_read);
-            switch (style) {
-                case 1: {
-                    for (size_t i = 0; i < bytes_read; i++) { printf("%02X ", mux_i2c_buf[i]); }
-                } break;
-                case 2: {
-                    switch (bytes_read) {
-                        case 1:
-                            printf("%u", mux_i2c_buf[0]);
-                            break;
-                        case 2:
-                            printf("%u", WNTR_UNPACK_16(mux_i2c_buf, 0));
-                            break;
-                        case 4:
-                            printf("%u", WNTR_UNPACK_32(mux_i2c_buf, 0));
-                            break;
-                        default:
-                            printf("! Wrong number of bytes for integer reply: %u", bytes_read);
-                            return;
-                    }
-                } break;
-
-                case 0:
-                default: {
-                    for (size_t i = 0; i < bytes_read; i++) { printf("%c", mux_i2c_buf[i]); }
-                } break;
-            }
-
-            printf("\n");
-
+            i2c_commands_m261_request(&i2c_commands_state, cmd);
         } break;
 
         // M262: I2C Scan
         // Non-standard.
         case 262: {
-            for (uint8_t addr = 0; addr < 127; addr++) {
-                if ((addr & 0x78) == 0 || (addr & 0x78) == 0x78) {
-                    continue;
-                }
-
-                uint8_t out[] = {0};
-                int result = i2c_read_timeout_us(MUX_I2C_INST, addr, out, 1, false, MUX_I2C_TIMEOUT);
-
-                if (result < 0) {
-                    printf("> 0x%2X: no response\n", addr);
-                } else {
-                    printf("> 0x%2X: replied 0x%2X\n", addr, out[0]);
-                }
-            }
+            i2c_commands_m262_scan();
         } break;
 
         // M263: I2C pressure sensor read

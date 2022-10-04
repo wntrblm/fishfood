@@ -17,6 +17,7 @@ add_executable(picostep
   main.c
   linear_axis.c
   rotational_axis.c
+  i2c_commands.c
   drivers/tmc2209.c
   drivers/tmc2209_helper.c
   drivers/tmc_uart.c
