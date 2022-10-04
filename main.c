@@ -15,6 +15,7 @@
 #include "pico/stdlib.h"
 #include "pico/time.h"
 #include "rotational_axis.h"
+#include "bresenham.h"
 #include "wntr_pack.h"
 #include <math.h>
 #include <stdio.h>
@@ -38,6 +39,11 @@ static struct LinearAxis y_axis;
 static struct LinearAxis z_axis;
 static struct RotationalAxis a_axis;
 static struct RotationalAxis b_axis;
+
+static bool coordinated_move = false;
+static struct Bresenham bresenham;
+static struct LinearAxis* major_axis = NULL;
+static struct LinearAxis* minor_axis = NULL;
 
 static repeating_timer_t step_timer;
 
@@ -208,11 +214,16 @@ int main() {
 
 static int64_t step_timer_callback(alarm_id_t id, void* user_data) {
     gpio_put(PIN_AUX_LED, true);
-#ifdef HAS_X_AXIS
-    LinearAxis_step(&x_axis);
-#endif
-#ifdef HAS_Y_AXIS
-    LinearAxis_step(&y_axis);
+#if defined(HAS_X_AXIS) && defined(HAS_Y_AXIS)
+    if(coordinated_move) {
+        LinearAxis_step(major_axis);
+        if(Bresenham_step(&bresenham)) {
+            LinearAxis_step(minor_axis);
+        }
+    } else {
+        LinearAxis_step(&x_axis);
+        LinearAxis_step(&y_axis);
+    }
 #endif
 #ifdef HAS_Z_AXIS
     LinearAxis_step(&z_axis);
@@ -272,24 +283,44 @@ static void run_g_command(struct lilg_Command cmd) {
                 z_axis.velocity_mm_s = mm_per_min / 60.0f;
             }
 
-#ifdef HAS_X_AXIS
+#if defined(HAS_X_AXIS) && defined(HAS_Y_AXIS)
+            float x_dest_mm = lilg_Decimal_to_float(cmd.X);
+            float y_dest_mm = lilg_Decimal_to_float(cmd.Y);
+            if (!absolute_positioning) {
+                x_dest_mm = LinearAxis_get_position_mm(&x_axis) + x_dest_mm;
+                y_dest_mm = LinearAxis_get_position_mm(&y_axis) + y_dest_mm;
+            }
+            struct LinearAxisMovement x_move = LinearAxis_calculate_move(&x_axis, x_dest_mm);
+            struct LinearAxisMovement y_move = LinearAxis_calculate_move(&y_axis, y_dest_mm);
+
+            uint32_t irq_status = save_and_disable_interrupts();
+
+            if(cmd.X.set && cmd.Y.set) {
+                coordinated_move = true;
+                if (x_move.total_step_count > y_move.total_step_count) {
+                    major_axis = &x_axis;
+                    minor_axis = &y_axis;
+                    Bresenham_init(&bresenham, 0, 0, x_move.total_step_count, y_move.total_step_count);
+                } else {
+                    major_axis = &y_axis;
+                    minor_axis = &x_axis;
+                    Bresenham_init(&bresenham, 0, 0, y_move.total_step_count, x_move.total_step_count);
+                }
+                printf("> Coordinated move: major axis: %c, minor axis: %c, major steps: %i, minor steps: %i\n", major_axis->name, minor_axis->name, bresenham.x1, bresenham.y1);
+            } else {
+                coordinated_move = false;
+            }
+
             if (cmd.X.set) {
-                float dest_mm = lilg_Decimal_to_float(cmd.X);
-                if (!absolute_positioning) {
-                    dest_mm = LinearAxis_get_position_mm(&x_axis) + dest_mm;
-                }
-                LinearAxis_start_move(&x_axis, LinearAxis_calculate_move(&x_axis, dest_mm));
+                LinearAxis_start_move(&x_axis, x_move);
             }
-#endif
-#ifdef HAS_Y_AXIS
             if (cmd.Y.set) {
-                float dest_mm = lilg_Decimal_to_float(cmd.Y);
-                if (!absolute_positioning) {
-                    dest_mm = LinearAxis_get_position_mm(&y_axis) + dest_mm;
-                }
-                LinearAxis_start_move(&y_axis, LinearAxis_calculate_move(&y_axis, dest_mm));
+                LinearAxis_start_move(&y_axis, y_move);
             }
+
+            restore_interrupts(irq_status);
 #endif
+
 #ifdef HAS_Z_AXIS
             if (cmd.Z.set) {
                 float dest_mm = lilg_Decimal_to_float(cmd.Z);
