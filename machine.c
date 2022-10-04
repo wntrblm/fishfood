@@ -11,7 +11,7 @@
 #define INIT_STEPPER(number, LETTER)                                                                                   \
     Stepper_init(                                                                                                      \
         &(m->stepper[number]),                                                                                         \
-        (m->stepper[number].tmc),                                                                                      \
+        &(m->tmc[number]),                                                                                      \
         LETTER##_PIN_EN,                                                                                               \
         LETTER##_PIN_DIR,                                                                                              \
         LETTER##_PIN_STEP,                                                                                             \
@@ -49,7 +49,7 @@ void Machine_init(struct Machine* m) {
     TMC2209_init(&m->tmc[0], TMC_UART_INST, 0, tmc_uart_read_write);
     TMC2209_init(&m->tmc[1], TMC_UART_INST, 1, tmc_uart_read_write);
     // Note: This should be 2, but both Jellyfish & Starfish skip address 2.
-    TMC2209_init(&m->tmc[3], TMC_UART_INST, 3, tmc_uart_read_write);
+    TMC2209_init(&m->tmc[2], TMC_UART_INST, 3, tmc_uart_read_write);
 
 #ifdef HAS_XY_AXES
     INIT_LINEAR_AXIS(x, X);
@@ -309,17 +309,15 @@ void Machine_report_tmc_info(struct Machine* m) {
 
 int64_t Machine_step(struct Machine* m) {
 #ifdef HAS_XY_AXES
-    // if (coordinated_move) {
-    //     LinearAxis_step(major_axis);
-    //     if (Bresenham_step(&bresenham)) {
-    //         LinearAxis_step(minor_axis);
-    //     }
-    // } else {
-    //     LinearAxis_step(&x_axis);
-    //     LinearAxis_step(&y_axis);
-    // }
-    LinearAxis_step(&(m->x));
-    LinearAxis_step(&(m->y));
+    if (m->_is_coordinated_move) {
+        LinearAxis_step(m->_major_axis);
+        if (Bresenham_step(&(m->_bresenham))) {
+            LinearAxis_step(m->_minor_axis);
+        }
+    } else {
+        LinearAxis_step(&(m->x));
+        LinearAxis_step(&(m->y));
+    }
 #endif
 #ifdef HAS_Z_AXIS
     LinearAxis_step(&(m->z));
