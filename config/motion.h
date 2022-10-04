@@ -42,8 +42,7 @@
 #ifdef STARFISH
 #define HAS_XY_AXES 1
 
-#define X_TMC (tmc0)
-#define X_STEPPER (stepper0)
+#define X_STEPPER 0
 #define X_PIN_DIR PIN_M0_DIR
 #define X_PIN_DIAG PIN_M0_DIAG
 #define X_PIN_STEP PIN_M0_STEP
@@ -52,6 +51,7 @@
 // TODO: This value needs to be empirically validated.
 #define X_RUN_CURRENT 1.0f
 #define X_HOLD_CURRENT_MULTIPLIER 0.5f
+
 #define X_DEFAULT_VELOCITY_MM_S 400.0f
 #define X_DEFAULT_ACCELERATION_MM_S2 8000.0f
 // Note: steps/mm is dependent on the microsteps, if you change those this
@@ -65,22 +65,26 @@
 #define X_HOMING_DISTANCE_MM 500.0f
 #define X_HOMING_BOUNCE_MM 20.0f
 #define X_HOMING_DIR -1
-#define Y1_TMC (tmc1)
-#define Y1_STEPPER (stepper1)
-#define Y1_PIN_DIR PIN_M1_DIR
-#define Y1_PIN_DIAG PIN_M1_DIAG
-#define Y1_PIN_STEP PIN_M1_STEP
-#define Y1_PIN_EN PIN_M1_EN
-#define Y2_TMC (tmc2)
-#define Y2_STEPPER (stepper2)
-#define Y2_PIN_DIR PIN_M2_DIR
-#define Y2_PIN_DIAG PIN_M2_DIAG
-#define Y2_PIN_STEP PIN_M2_STEP
-#define Y2_PIN_EN PIN_M2_EN
+
+#define Y_STEPPER 1
+#define Y_PIN_DIR PIN_M1_DIR
+#define Y_PIN_DIAG PIN_M1_DIAG
+#define Y_PIN_STEP PIN_M1_STEP
+#define Y_PIN_EN PIN_M1_EN
 #define Y_REVERSED 1
 // TODO: This value needs to be empirically validated.
 #define Y_RUN_CURRENT 1.0f
 #define Y_HOLD_CURRENT_MULTIPLIER 0.3f
+
+#define Y2_STEPPER 2
+#define Y2_PIN_DIR PIN_M2_DIR
+#define Y2_PIN_DIAG PIN_M2_DIAG
+#define Y2_PIN_STEP PIN_M2_STEP
+#define Y2_PIN_EN PIN_M2_EN
+#define Y2_REVERSED 0
+#define Y2_RUN_CURRENT Y_RUN_CURRENT
+#define Y2_HOLD_CURRENT_MULTIPLIER Y_HOLD_CURRENT_MULTIPLIER
+
 #define Y_DEFAULT_VELOCITY_MM_S 400.0f
 #define Y_DEFAULT_ACCELERATION_MM_S2 8000.0f
 // Note: steps/mm is dependent on the microsteps, if you change those this
