@@ -12,10 +12,6 @@
 void i2c_commands_init(struct I2CCommandsState* s) {
     s->_addr = 0;
     s->_idx = 0;
-
-    i2c_init(PERIPH_I2C_INST, PERIPH_I2C_SPEED);
-    gpio_set_function(PIN_I2C_SDA, GPIO_FUNC_I2C);
-    gpio_set_function(PIN_I2C_SCL, GPIO_FUNC_I2C);
 };
 
 void i2c_commands_m260_send(struct I2CCommandsState* s, const struct lilg_Command cmd) {

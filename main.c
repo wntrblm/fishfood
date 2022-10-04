@@ -1,25 +1,25 @@
+#include "bresenham.h"
 #include "config/motion.h"
 #include "config/pins.h"
 #include "config/serial.h"
 #include "drivers/neopixel.h"
+#include "drivers/pca9495a.h"
 #include "drivers/tmc2209.h"
 #include "drivers/tmc2209_helper.h"
 #include "drivers/tmc_uart.h"
 #include "drivers/xgzp6857d.h"
-#include "drivers/pca9495a.h"
+#include "gpio_commands.h"
 #include "hardware/gpio.h"
 #include "hardware/i2c.h"
 #include "hardware/sync.h"
 #include "hardware/uart.h"
+#include "i2c_commands.h"
 #include "linear_axis.h"
 #include "littleg/littleg.h"
 #include "pico/bootrom.h"
 #include "pico/stdlib.h"
 #include "pico/time.h"
 #include "rotational_axis.h"
-#include "bresenham.h"
-#include "i2c_commands.h"
-#include "wntr_pack.h"
 #include <math.h>
 #include <stdio.h>
 
@@ -84,6 +84,9 @@ int main() {
     while (!stdio_usb_connected()) {}
 
     printf("| Starting I2C peripheral bus...");
+    i2c_init(PERIPH_I2C_INST, PERIPH_I2C_SPEED);
+    gpio_set_function(PIN_I2C_SDA, GPIO_FUNC_I2C);
+    gpio_set_function(PIN_I2C_SCL, GPIO_FUNC_I2C);
     i2c_commands_init(&i2c_commands_state);
 
     printf("| Starting TMC UART...\n");
@@ -208,9 +211,9 @@ int main() {
 static int64_t step_timer_callback(alarm_id_t id, void* user_data) {
     gpio_put(PIN_AUX_LED, true);
 #ifdef HAS_XY_AXES
-    if(coordinated_move) {
+    if (coordinated_move) {
         LinearAxis_step(major_axis);
-        if(Bresenham_step(&bresenham)) {
+        if (Bresenham_step(&bresenham)) {
             LinearAxis_step(minor_axis);
         }
     } else {
@@ -288,7 +291,7 @@ static void run_g_command(struct lilg_Command cmd) {
 
             uint32_t irq_status = save_and_disable_interrupts();
 
-            if(cmd.X.set && cmd.Y.set) {
+            if (cmd.X.set && cmd.Y.set) {
                 coordinated_move = true;
                 if (x_move.total_step_count > y_move.total_step_count) {
                     major_axis = &x_axis;
@@ -299,7 +302,12 @@ static void run_g_command(struct lilg_Command cmd) {
                     minor_axis = &x_axis;
                     Bresenham_init(&bresenham, 0, 0, y_move.total_step_count, x_move.total_step_count);
                 }
-                printf("> Coordinated move: major axis: %c, minor axis: %c, major steps: %i, minor steps: %i\n", major_axis->name, minor_axis->name, bresenham.x1, bresenham.y1);
+                printf(
+                    "> Coordinated move: major axis: %c, minor axis: %c, major steps: %i, minor steps: %i\n",
+                    major_axis->name,
+                    minor_axis->name,
+                    bresenham.x1,
+                    bresenham.y1);
             } else {
                 coordinated_move = false;
             }
@@ -470,84 +478,13 @@ static void run_m_command(struct lilg_Command cmd) {
         // This is slightly different from Marlin's implementation
         // https://marlinfw.org/docs/gcode/M042.html
         case 42: {
-            uint8_t pin_index = LILG_FIELD(cmd, P).real;
-            if (pin_index >= M42_PIN_TABLE_LEN) {
-                printf("! No pin at index %u\n", pin_index);
-                return;
-            }
-
-            const struct M42PinTableEntry pin_desc = M42_PIN_TABLE[pin_index];
-
-            if (LILG_FIELD(cmd, T).set) {
-                switch (LILG_FIELD(cmd, S).real) {
-                    // Input
-                    case 0: {
-                        gpio_init(pin_desc.pin);
-                        gpio_set_dir(pin_desc.pin, GPIO_IN);
-                    } break;
-                    // Output
-                    case 1: {
-                        gpio_init(pin_desc.pin);
-                        gpio_set_dir(pin_desc.pin, GPIO_OUT);
-                    } break;
-                    // Input, pull-up
-                    case 2: {
-                        gpio_init(pin_desc.pin);
-                        gpio_set_dir(pin_desc.pin, GPIO_IN);
-                        gpio_pull_up(pin_desc.pin);
-                    } break;
-                    // Input, pull-down
-                    case 3: {
-                        gpio_init(pin_desc.pin);
-                        gpio_set_dir(pin_desc.pin, GPIO_IN);
-                        gpio_pull_down(pin_desc.pin);
-                    } break;
-                    default: {
-                        printf("! Invalid type %u, must be 0, 1, 2, or 3.\n", LILG_FIELD(cmd, S).real);
-                        return;
-                    };
-                }
-            }
-
-            if (LILG_FIELD(cmd, S).set) {
-                bool val = LILG_FIELD(cmd, S).real > 0 ? true : false;
-                gpio_put(pin_desc.pin, val);
-                printf("> P:%u name:%s GPIO:%u S:%u\n", pin_index, pin_desc.name, pin_desc.pin, val);
-            }
+            gpio_commands_m42_set_pin(cmd);
         } break;
 
         // M43 Report pin state
         // https://marlinfw.org/docs/gcode/M043.html
         case 43: {
-            if (!LILG_FIELD(cmd, P).set) {
-                // Report all pins
-                for (size_t i = 0; i < M42_PIN_TABLE_LEN; i++) {
-                    const struct M42PinTableEntry pin_desc = M42_PIN_TABLE[i];
-                    printf(
-                        "> P:%u name:%s GPIO:%u dir:%s state:%u\n",
-                        i,
-                        pin_desc.name,
-                        pin_desc.pin,
-                        gpio_is_dir_out(pin_desc.pin) ? "output" : "input",
-                        gpio_is_dir_out(pin_desc.pin) ? gpio_get_out_level(pin_desc.pin) : gpio_get(pin_desc.pin));
-                }
-            } else {
-                uint8_t pin_index = LILG_FIELD(cmd, P).real;
-                if (pin_index >= M42_PIN_TABLE_LEN) {
-                    printf("! No pin at index %u\n", pin_index);
-                    return;
-                }
-
-                const struct M42PinTableEntry pin_desc = M42_PIN_TABLE[pin_index];
-
-                printf(
-                    "> P:%u name:%s GPIO:%u dir:%s state:%u",
-                    pin_index,
-                    pin_desc.name,
-                    pin_desc.pin,
-                    gpio_is_dir_out(pin_desc.pin) ? "output" : "input",
-                    gpio_is_dir_out(pin_desc.pin) ? gpio_get_out_level(pin_desc.pin) : gpio_get(pin_desc.pin));
-            }
+            gpio_commands_m43_report_pin(cmd);
         } break;
 
         // M114 get current position
