@@ -8,7 +8,6 @@
 #include "gpio_commands.h"
 #include "hardware/gpio.h"
 #include "hardware/i2c.h"
-#include "hardware/sync.h"
 #include "hardware/uart.h"
 #include "i2c_commands.h"
 #include "littleg/littleg.h"
@@ -34,11 +33,6 @@ static void run_m_command(struct lilg_Command cmd);
 
 int main() {
     stdio_init_all();
-
-    irq_set_priority(TIMER_IRQ_0, PICO_DEFAULT_IRQ_PRIORITY + 1);
-    irq_set_priority(TIMER_IRQ_1, PICO_DEFAULT_IRQ_PRIORITY + 1);
-    irq_set_priority(TIMER_IRQ_2, PICO_DEFAULT_IRQ_PRIORITY + 1);
-    irq_set_priority(TIMER_IRQ_3, PICO_DEFAULT_IRQ_PRIORITY + 1);
 
     gpio_init(PIN_ACT_LED);
     gpio_set_dir(PIN_ACT_LED, GPIO_OUT);
@@ -75,18 +69,17 @@ int main() {
     printf("| Enabling steppers...\n");
     Machine_enable_steppers(&machine);
 
-    printf("| Starting step timer...\n");
-    uint32_t irq_status = save_and_disable_interrupts();
-    alarm_pool_t* alarm_pool = alarm_pool_get_default();
-    alarm_pool_add_alarm_at(alarm_pool, make_timeout_time_us(1000), step_timer_callback, NULL, false);
-    restore_interrupts(irq_status);
-
     printf("| Ready!\n");
     Neopixel_set_all(pixels, NUM_PIXELS, 0, 0, 255);
     Neopixel_write(pixels, NUM_PIXELS);
 
     while (1) {
-        int in_c = getchar();
+        int in_c = getchar_timeout_us(100);
+
+        if (in_c == PICO_ERROR_TIMEOUT) {
+            continue;
+        }
+
         if (in_c == EOF) {
             break;
         }
@@ -95,10 +88,6 @@ int main() {
     }
 
     printf("! Main loop exited due to end of file on stdin\n");
-}
-
-static int64_t step_timer_callback(alarm_id_t id, void* user_data) {
-    return Machine_step(&machine);
 }
 
 static void process_incoming_char(char c) {
@@ -144,11 +133,7 @@ static void run_g_command(struct lilg_Command cmd) {
                 Machine_set_linear_velocity(&machine, vel_mm_s);
             }
 
-#ifdef HAS_XY_AXES
-            Machine_coordinated_xy_move(&machine, cmd);
-#endif
-            Machine_basic_move(&machine, cmd);
-            Machine_wait_for_moves_to_finish(&machine);
+            Machine_move(&machine, cmd);
         } break;
 
         // Home axes

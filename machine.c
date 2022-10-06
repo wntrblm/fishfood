@@ -11,7 +11,7 @@
 #define INIT_STEPPER(number, LETTER)                                                                                   \
     Stepper_init(                                                                                                      \
         &(m->stepper[number]),                                                                                         \
-        &(m->tmc[number]),                                                                                      \
+        &(m->tmc[number]),                                                                                             \
         LETTER##_PIN_EN,                                                                                               \
         LETTER##_PIN_DIR,                                                                                              \
         LETTER##_PIN_STEP,                                                                                             \
@@ -179,62 +179,83 @@ void Machine_home(struct Machine* m, bool x, bool y, bool z) {
 #endif
 }
 
-#ifdef HAS_XY_AXES
-void Machine_coordinated_xy_move(struct Machine* m, const struct lilg_Command cmd) {
-    float x_dest_mm = lilg_Decimal_to_float(cmd.X);
-    float y_dest_mm = lilg_Decimal_to_float(cmd.Y);
-
+struct LinearAxisMovement
+__not_in_flash_func(calculate_linear_axis_move)(struct Machine* m, struct LinearAxis* axis, struct lilg_Decimal field) {
+    float dest_mm = lilg_Decimal_to_float(field);
     if (!m->absolute_positioning) {
-        x_dest_mm = LinearAxis_get_position_mm(&(m->x)) + x_dest_mm;
-        y_dest_mm = LinearAxis_get_position_mm(&(m->y)) + y_dest_mm;
+        dest_mm = LinearAxis_get_position_mm(axis) + dest_mm;
     }
-    struct LinearAxisMovement x_move = LinearAxis_calculate_move(&(m->x), x_dest_mm);
-    struct LinearAxisMovement y_move = LinearAxis_calculate_move(&(m->y), y_dest_mm);
+    return LinearAxis_calculate_move(axis, dest_mm);
+}
 
-    uint32_t irq_status = save_and_disable_interrupts();
+#ifdef HAS_XY_AXES
+void __not_in_flash_func(bresenham_xy_move)(struct Machine* m, const struct lilg_Command cmd) {
+    struct LinearAxisMovement x_move = calculate_linear_axis_move(m, &(m->x), cmd.X);
+    struct LinearAxisMovement y_move = calculate_linear_axis_move(m, &(m->y), cmd.Y);
 
-    if (cmd.X.set && cmd.Y.set) {
-        m->_is_coordinated_move = true;
-        if (x_move.total_step_count > y_move.total_step_count) {
-            m->_major_axis = &(m->x);
-            m->_minor_axis = &(m->y);
-            Bresenham_init(&(m->_bresenham), 0, 0, x_move.total_step_count, y_move.total_step_count);
-        } else {
-            m->_major_axis = &(m->y);
-            m->_minor_axis = &(m->x);
-            Bresenham_init(&(m->_bresenham), 0, 0, y_move.total_step_count, x_move.total_step_count);
-        }
-        printf(
-            "> Coordinated move: major axis: %c, minor axis: %c, major steps: %i, minor steps: %i\n",
-            m->_major_axis->name,
-            m->_minor_axis->name,
-            m->_bresenham.x1,
-            m->_bresenham.y1);
+    if (x_move.total_step_count > y_move.total_step_count) {
+        m->_major_axis = &(m->x);
+        m->_minor_axis = &(m->y);
+        Bresenham_init(&(m->_bresenham), 0, 0, x_move.total_step_count, y_move.total_step_count);
     } else {
-        m->_is_coordinated_move = false;
+        m->_major_axis = &(m->y);
+        m->_minor_axis = &(m->x);
+        Bresenham_init(&(m->_bresenham), 0, 0, y_move.total_step_count, x_move.total_step_count);
     }
 
-    if (cmd.X.set) {
-        LinearAxis_start_move(&(m->x), x_move);
-    }
-    if (cmd.Y.set) {
-        LinearAxis_start_move(&(m->y), y_move);
-    }
+    printf(
+        "> Coordinated move: major axis: %c, minor axis: %c, major steps: %i, minor steps: %i\n",
+        m->_major_axis->name,
+        m->_minor_axis->name,
+        m->_bresenham.x1,
+        m->_bresenham.y1);
 
-    restore_interrupts(irq_status);
+    LinearAxis_start_move(&(m->x), x_move);
+    LinearAxis_start_move(&(m->y), y_move);
+    while (LinearAxis_is_moving(m->_major_axis)) {
+        if (LinearAxis_timed_step(m->_major_axis, get_absolute_time())) {
+            if (Bresenham_step(&(m->_bresenham))) {
+                LinearAxis_direct_step(m->_minor_axis);
+            }
+        }
+    }
+    // Make sure to finish the minor axis' movement:
+    while (LinearAxis_is_moving(m->_minor_axis)) {
+        LinearAxis_direct_step(m->_minor_axis);
+    }
 }
 #endif
 
-void Machine_basic_move(struct Machine* m, const struct lilg_Command cmd) {
-#ifdef HAS_Z_AXIS
-    if (cmd.Z.set) {
-        float dest_mm = lilg_Decimal_to_float(cmd.Z);
-        if (!absolute_positioning) {
-            dest_mm = LinearAxis_get_position_mm(&z_axis) + dest_mm;
+void Machine_move(struct Machine* m, const struct lilg_Command cmd) {
+
+#ifdef HAS_XY_AXES
+    if (cmd.X.set && cmd.Y.set) {
+        bresenham_xy_move(m, cmd);
+    } else {
+        if (cmd.X.set) {
+            struct LinearAxisMovement move = calculate_linear_axis_move(m, &(m->x), cmd.X);
+            LinearAxis_start_move(&(m->x), move);
+            LinearAxis_wait_for_move(&(m->x));
         }
-        LinearAxis_start_move(&(m->z), dest_mm);
+        if (cmd.Y.set) {
+            struct LinearAxisMovement move = calculate_linear_axis_move(m, &(m->y), cmd.Y);
+            LinearAxis_start_move(&(m->y), move);
+            LinearAxis_wait_for_move(&(m->y));
+        }
     }
 #endif
+
+    // TODO: Maybe run all of these basic axes concurrently / round robin?
+
+#ifdef HAS_Z_AXIS
+    if (cmd.Z.set) {
+        struct LinearAxisMovement move = calculate_linear_axis_move(m, &(m->z), cmd.Z);
+        float dest_mm = lilg_Decimal_to_float(cmd.Z);
+        LinearAxis_start_move(&(m->z), move);
+        LinearAxis_wait_for_move(&(m->z));
+    }
+#endif
+
 #ifdef HAS_A_AXIS
     if (LILG_FIELD(cmd, A).set) {
         float dest_deg = lilg_Decimal_to_float(LILG_FIELD(cmd, A));
@@ -242,6 +263,7 @@ void Machine_basic_move(struct Machine* m, const struct lilg_Command cmd) {
             dest_deg = RotationalAxis_get_position_deg(&a_axis) + dest_deg;
         }
         RotationalAxis_start_move(&(m->a), dest_deg);
+        RotationalAxis_wait_for_move(&(m->a));
     }
 #endif
 #ifdef HAS_B_AXIS
@@ -251,23 +273,8 @@ void Machine_basic_move(struct Machine* m, const struct lilg_Command cmd) {
             dest_deg = RotationalAxis_get_position_deg(&b_axis) + dest_deg;
         }
         RotationalAxis_start_move(&(m->b), dest_deg);
+        RotationalAxis_wait_for_move(&(m->b));
     }
-#endif
-}
-
-void Machine_wait_for_moves_to_finish(struct Machine* m) {
-#ifdef HAS_XY_AXES
-    LinearAxis_wait_for_move(&(m->x));
-    LinearAxis_wait_for_move(&(m->y));
-#endif
-#ifdef HAS_Z_AXIS
-    LinearAxis_wait_for_move(&(m->z));
-#endif
-#ifdef HAS_A_AXIS
-    RotationalAxis_wait_for_move(&(m->a));
-#endif
-#ifdef HAS_B_AXIS
-    RotationalAxis_wait_for_move(&(m->b));
 #endif
 }
 
@@ -285,7 +292,7 @@ void Machine_report_position(struct Machine* m) {
 #ifdef HAS_B_AXIS
     printf(" B:%0.1f", RotationalAxis_get_position_deg(&(m->b)));
 #endif
-    printf("count:");
+    printf(" count:");
 #ifdef HAS_XY_AXES
     printf(" X:%i Y:%i", m->x.stepper->total_steps, m->y.stepper->total_steps);
 #endif
@@ -305,28 +312,4 @@ void Machine_report_tmc_info(struct Machine* m) {
     TMC2209_print_all(&(m->tmc[0]));
     TMC2209_print_all(&(m->tmc[1]));
     TMC2209_print_all(&(m->tmc[2]));
-}
-
-int64_t Machine_step(struct Machine* m) {
-#ifdef HAS_XY_AXES
-    if (m->_is_coordinated_move) {
-        LinearAxis_step(m->_major_axis);
-        if (Bresenham_step(&(m->_bresenham))) {
-            LinearAxis_step(m->_minor_axis);
-        }
-    } else {
-        LinearAxis_step(&(m->x));
-        LinearAxis_step(&(m->y));
-    }
-#endif
-#ifdef HAS_Z_AXIS
-    LinearAxis_step(&(m->z));
-#endif
-#ifdef HAS_A_AXIS
-    RotationalAxis_step(&(m->a));
-#endif
-#ifdef HAS_B_AXIS
-    RotationalAxis_step(&(m->b));
-#endif
-    return STEP_INTERVAL_US;
 }
