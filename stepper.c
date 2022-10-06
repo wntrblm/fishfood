@@ -1,6 +1,7 @@
 #include "stepper.h"
 #include "drivers/tmc2209_helper.h"
 #include "hardware/gpio.h"
+#include "pico/time.h"
 #include <stdio.h>
 
 /*
@@ -28,7 +29,6 @@ void Stepper_init(
     s->hold_current = hold_current;
 
     s->total_steps = 0;
-    s->_step_edge = false;
 }
 
 bool Stepper_setup(struct Stepper* s) {
@@ -80,17 +80,26 @@ bool Stepper_stalled(struct Stepper* s) {
     return gpio_get(s->pin_diag);
 }
 
-// Note: must be called *twice* to do a complete step.
-// Returns true once a complete step has been made.
-bool Stepper_step(struct Stepper* s) {
+void Stepper_step(struct Stepper* s) {
     gpio_put(s->pin_dir, s->direction > 0 ? !s->reversed : s->reversed);
-    gpio_put(s->pin_step, s->_step_edge);
-    s->_step_edge = !s->_step_edge;
 
-    if (s->_step_edge == false) {
-        s->total_steps += s->direction;
-        return true;
-    } else {
-        return false;
-    }
+    gpio_put(s->pin_step, true);
+    sleep_us(1);
+    gpio_put(s->pin_step, false);
+
+    s->total_steps += s->direction;
+}
+
+void Stepper_step_two(struct Stepper* s1, struct Stepper* s2) {
+    gpio_put(s1->pin_dir, s1->direction > 0 ? !s1->reversed : s1->reversed);
+    gpio_put(s2->pin_dir, s2->direction > 0 ? !s2->reversed : s2->reversed);
+
+    gpio_put(s1->pin_step, true);
+    gpio_put(s2->pin_step, true);
+    sleep_us(1);
+    gpio_put(s1->pin_step, false);
+    gpio_put(s2->pin_step, false);
+
+    s1->total_steps += s1->direction;
+    s2->total_steps += s2->direction;
 }

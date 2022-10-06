@@ -19,9 +19,6 @@ struct Stepper {
     // 1 for forwards -1 for backwards.
     int8_t direction;
     int32_t total_steps;
-
-    // internal state
-    bool _step_edge;
 };
 
 void Stepper_init(
@@ -41,6 +38,5 @@ void Stepper_set_current(struct Stepper* s, float run_current, float hold_curren
 void Stepper_enable_stallguard(struct Stepper* s, uint8_t threshold);
 void Stepper_disable_stallguard(struct Stepper* s);
 bool Stepper_stalled(struct Stepper* s);
-// Note: must be called *twice* to do a complete step.
-// Returns true once a complete step has been made.
-bool Stepper_step(struct Stepper* s);
+void Stepper_step(struct Stepper* s);
+void Stepper_step_two(struct Stepper* s1, struct Stepper* s2);
