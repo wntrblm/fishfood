@@ -7,6 +7,7 @@
 #include <stdint.h>
 
 struct LinearAxisMovement {
+    // Direction of travel, +1 or -1.
     int8_t direction;
     // Total number of steps to spend accelerating.
     int32_t accel_step_count;
@@ -63,23 +64,25 @@ void LinearAxis_init(struct LinearAxis* m, char name, struct Stepper* stepper);
 
 inline void LinearAxis_setup_dual(struct LinearAxis* m, struct Stepper* stepper) { m->stepper2 = stepper; }
 
-void LinearAxis_home(volatile struct LinearAxis* m);
+void LinearAxis_home(struct LinearAxis* m);
 
-struct LinearAxisMovement LinearAxis_calculate_move(volatile struct LinearAxis* m, float dest_mm);
+struct LinearAxisMovement LinearAxis_calculate_move(struct LinearAxis* m, float dest_mm);
 
-void LinearAxis_start_move(volatile struct LinearAxis* m, struct LinearAxisMovement move);
+void LinearAxis_start_move(struct LinearAxis* m, struct LinearAxisMovement move);
 
-void LinearAxis_wait_for_move(volatile struct LinearAxis* m);
+void LinearAxis_wait_for_move(struct LinearAxis* m);
 
-float LinearAxis_get_position_mm(volatile struct LinearAxis* m);
+float LinearAxis_get_position_mm(struct LinearAxis* m);
 
-inline void LinearAxis_reset_position(volatile struct LinearAxis* m) {
+inline void LinearAxis_reset_position(struct LinearAxis* m) {
     m->stepper->total_steps = 0;
     m->_current_move = (struct LinearAxisMovement){};
 }
 
-inline bool LinearAxis_is_moving(volatile struct LinearAxis* m) { return m->_current_move.total_step_count != 0; }
+inline bool LinearAxis_is_moving(struct LinearAxis* m) { return m->_current_move.total_step_count != 0; }
 
-inline void LinearAxis_stop(volatile struct LinearAxis* m) { m->_current_move = (struct LinearAxisMovement){}; }
+inline void LinearAxis_stop(struct LinearAxis* m) { m->_current_move = (struct LinearAxisMovement){}; }
 
-bool LinearAxis_step(volatile struct LinearAxis* m);
+bool LinearAxis_timed_step(struct LinearAxis* m, const absolute_time_t now);
+
+void LinearAxis_direct_step(struct LinearAxis* m);
