@@ -4,11 +4,6 @@
 #include "config/pins.h"
 
 /*
-    Configuration for the step timer
-*/
-#define STEP_INTERVAL_US 20
-
-/*
     Common configuration for all TMC2209 drivers.
 */
 
@@ -52,16 +47,16 @@
 #define X_RUN_CURRENT 1.0f
 #define X_HOLD_CURRENT_MULTIPLIER 0.5f
 
-#define X_DEFAULT_VELOCITY_MM_S 400.0f
-#define X_DEFAULT_ACCELERATION_MM_S2 8000.0f
+#define X_DEFAULT_VELOCITY_MM_S 300.0f
+#define X_DEFAULT_ACCELERATION_MM_S2 1000.0f
 // Note: steps/mm is dependent on the microsteps, if you change those this
 // will also need to be updated.
 #define X_STEPS_PER_MM 160.0f
 // Sensorless homing stall detection threshold
 // 0 to 255, higher is more sensitive
 #define X_HOMING_SENSITIVITY 100
-#define X_HOMING_VELOCITY_MM_S 400.0f
-#define X_HOMING_ACCELERATION_MM_S2 20000.0f
+#define X_HOMING_VELOCITY_MM_S 200.0f
+#define X_HOMING_ACCELERATION_MM_S2 5000.0f
 #define X_HOMING_DISTANCE_MM 500.0f
 #define X_HOMING_BOUNCE_MM 20.0f
 #define X_HOMING_DIR -1
@@ -85,18 +80,18 @@
 #define Y2_RUN_CURRENT Y_RUN_CURRENT
 #define Y2_HOLD_CURRENT_MULTIPLIER Y_HOLD_CURRENT_MULTIPLIER
 
-#define Y_DEFAULT_VELOCITY_MM_S 400.0f
-#define Y_DEFAULT_ACCELERATION_MM_S2 8000.0f
+#define Y_DEFAULT_VELOCITY_MM_S X_DEFAULT_VELOCITY_MM_S
+#define Y_DEFAULT_ACCELERATION_MM_S2 X_DEFAULT_ACCELERATION_MM_S2
 // Note: steps/mm is dependent on the microsteps, if you change those this
 // will also need to be updated.
 #define Y_STEPS_PER_MM 160.0f
 // Sensorless homing stall detection threshold
 // 0 to 255, higher is more sensitive
 #define Y_HOMING_SENSITIVITY 150
-#define Y_HOMING_VELOCITY_MM_S 400.0f
-#define Y_HOMING_ACCELERATION_MM_S2 20000.0f
+#define Y_HOMING_VELOCITY_MM_S X_HOMING_VELOCITY_MM_S
+#define Y_HOMING_ACCELERATION_MM_S2 X_HOMING_ACCELERATION_MM_S2
 #define Y_HOMING_DISTANCE_MM 500.0f
-#define Y_HOMING_BOUNCE_MM 20.0f
+#define Y_HOMING_BOUNCE_MM X_HOMING_BOUNCE_MM
 #define Y_HOMING_DIR -1
 #endif
 
@@ -115,12 +110,12 @@
 #define Z_REVERSED 0
 #define Z_RUN_CURRENT 0.7f
 #define Z_HOLD_CURRENT_MULTIPLIER 0.8f
-#define Z_DEFAULT_VELOCITY_MM_S 150.0f
-#define Z_DEFAULT_ACCELERATION_MM_S2 8000.0f
+#define Z_DEFAULT_VELOCITY_MM_S 200.0f
+#define Z_DEFAULT_ACCELERATION_MM_S2 1000.0f
 #define Z_STEPS_PER_MM 160.0f
 #define Z_HOMING_SENSITIVITY 100
-#define Z_HOMING_VELOCITY_MM_S 150.0f
-#define Z_HOMING_ACCELERATION_MM_S2 20000.0f
+#define Z_HOMING_VELOCITY_MM_S 200.0f
+#define Z_HOMING_ACCELERATION_MM_S2 8000.0f
 #define Z_HOMING_DISTANCE_MM 100.0f
 #define Z_HOMING_BOUNCE_MM 20.0f
 #define Z_HOMING_DIR -1
