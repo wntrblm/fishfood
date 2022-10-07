@@ -4,16 +4,14 @@ include(pico_sdk_import.cmake)
 
 project(picostep_project C CXX ASM)
 
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD 17)
 set(CMAKE_CXX_STANDARD 17)
 
 pico_sdk_init()
 
 add_compile_definitions(PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64)
-add_compile_definitions(STARFISH=1)
-# add_compile_definitions(JELLYFISH=1)
 
-add_executable(picostep
+list(APPEND PICOSTEP_SOURCES
   main.c
   linear_axis.c
   rotational_axis.c
@@ -26,15 +24,20 @@ add_executable(picostep
   drivers/tmc_uart.c
   drivers/neopixel.c
   drivers/xgzp6857d.c
-  littleg/littleg.c
-)
+  littleg/littleg.c)
 
-pico_generate_pio_header(picostep ${CMAKE_CURRENT_LIST_DIR}/drivers/neopixel.pio)
+function(add_board_build board_name board_defines)
+  add_executable(${board_name} ${PICOSTEP_SOURCES})
 
-target_include_directories(picostep PUBLIC ${CMAKE_CURRENT_LIST_DIR})
+  pico_generate_pio_header(${board_name} ${CMAKE_CURRENT_LIST_DIR}/drivers/neopixel.pio)
+  pico_enable_stdio_uart(${board_name} 0)
+  pico_enable_stdio_usb(${board_name} 1)
+  pico_add_extra_outputs(${board_name})
 
-pico_enable_stdio_uart(picostep 0)
-pico_enable_stdio_usb(picostep 1)
-pico_add_extra_outputs(picostep)
+  target_include_directories(${board_name} PUBLIC ${CMAKE_CURRENT_LIST_DIR})
+  target_link_libraries(${board_name} pico_stdlib hardware_pio hardware_dma hardware_irq hardware_i2c)
+  target_compile_definitions(${board_name} PUBLIC ${board_defines})
+endfunction()
 
-target_link_libraries(picostep pico_stdlib hardware_pio hardware_dma hardware_irq hardware_i2c)
+add_board_build(starfish STARFISH=1)
+add_board_build(jellyfish JELLYFISH=1)
