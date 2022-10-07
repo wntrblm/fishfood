@@ -8,14 +8,17 @@
 /*
     Macros
 */
+
+#define PIN_M(n, f) PIN_M##n##_##f
+
 #define INIT_STEPPER(number, LETTER)                                                                                   \
     Stepper_init(                                                                                                      \
         &(m->stepper[number]),                                                                                         \
         &(m->tmc[number]),                                                                                             \
-        LETTER##_PIN_EN,                                                                                               \
-        LETTER##_PIN_DIR,                                                                                              \
-        LETTER##_PIN_STEP,                                                                                             \
-        LETTER##_PIN_DIAG,                                                                                             \
+        PIN_M(number, EN),                                                                                             \
+        PIN_M(number, DIR),                                                                                            \
+        PIN_M(number, STEP),                                                                                           \
+        PIN_M(number, DIAG),                                                                                           \
         LETTER##_REVERSED,                                                                                             \
         LETTER##_RUN_CURRENT,                                                                                          \
         LETTER##_RUN_CURRENT* LETTER##_HOLD_CURRENT_MULTIPLIER);
@@ -35,8 +38,8 @@
 
 #define INIT_ROTATIONAL_AXIS(letter, LETTER)                                                                           \
     INIT_STEPPER(LETTER##_STEPPER, LETTER);                                                                            \
-    RotationalAxis_init(&(m->##letter), #LETTER, &(m->stepper[LETTER##_STEPPER]));                                     \
-    m->##letter.steps_per_deg = LETTER##_STEPS_PER_DEG;
+    RotationalAxis_init(&(m->letter), #LETTER[0], &(m->stepper[LETTER##_STEPPER]));                                    \
+    m->letter.steps_per_deg = LETTER##_STEPS_PER_DEG;
 
 /*
     Public functions
@@ -64,11 +67,11 @@ void Machine_init(struct Machine* m) {
 #endif
 
 #ifdef HAS_A_AXIS
-    INIT_ROTATIONAL_AXIS(A, a);
+    INIT_ROTATIONAL_AXIS(a, A);
 #endif
 
 #ifdef HAS_B_AXIS
-    INIT_ROTATIONAL_AXIS(B, b);
+    INIT_ROTATIONAL_AXIS(b, B);
 #endif
 }
 
@@ -220,9 +223,7 @@ void __not_in_flash_func(bresenham_xy_move)(struct Machine* m, const struct lilg
         }
     }
     // Make sure to finish the minor axis' movement:
-    while (LinearAxis_is_moving(m->_minor_axis)) {
-        LinearAxis_direct_step(m->_minor_axis);
-    }
+    while (LinearAxis_is_moving(m->_minor_axis)) { LinearAxis_direct_step(m->_minor_axis); }
 }
 #endif
 
@@ -259,8 +260,8 @@ void Machine_move(struct Machine* m, const struct lilg_Command cmd) {
 #ifdef HAS_A_AXIS
     if (LILG_FIELD(cmd, A).set) {
         float dest_deg = lilg_Decimal_to_float(LILG_FIELD(cmd, A));
-        if (!absolute_positioning) {
-            dest_deg = RotationalAxis_get_position_deg(&a_axis) + dest_deg;
+        if (!m->absolute_positioning) {
+            dest_deg = RotationalAxis_get_position_deg(&(m->a)) + dest_deg;
         }
         RotationalAxis_start_move(&(m->a), dest_deg);
         RotationalAxis_wait_for_move(&(m->a));
@@ -269,8 +270,8 @@ void Machine_move(struct Machine* m, const struct lilg_Command cmd) {
 #ifdef HAS_B_AXIS
     if (LILG_FIELD(cmd, B).set) {
         float dest_deg = lilg_Decimal_to_float(LILG_FIELD(cmd, B));
-        if (!absolute_positioning) {
-            dest_deg = RotationalAxis_get_position_deg(&b_axis) + dest_deg;
+        if (!m->absolute_positioning) {
+            dest_deg = RotationalAxis_get_position_deg(&(m->b)) + dest_deg;
         }
         RotationalAxis_start_move(&(m->b), dest_deg);
         RotationalAxis_wait_for_move(&(m->b));

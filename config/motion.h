@@ -38,10 +38,6 @@
 #define HAS_XY_AXES 1
 
 #define X_STEPPER 0
-#define X_PIN_DIR PIN_M0_DIR
-#define X_PIN_DIAG PIN_M0_DIAG
-#define X_PIN_STEP PIN_M0_STEP
-#define X_PIN_EN PIN_M0_EN
 #define X_REVERSED 0
 // TODO: This value needs to be empirically validated.
 #define X_RUN_CURRENT 1.0f
@@ -62,20 +58,12 @@
 #define X_HOMING_DIR -1
 
 #define Y_STEPPER 1
-#define Y_PIN_DIR PIN_M1_DIR
-#define Y_PIN_DIAG PIN_M1_DIAG
-#define Y_PIN_STEP PIN_M1_STEP
-#define Y_PIN_EN PIN_M1_EN
 #define Y_REVERSED 1
 // TODO: This value needs to be empirically validated.
 #define Y_RUN_CURRENT 1.0f
 #define Y_HOLD_CURRENT_MULTIPLIER 0.3f
 
 #define Y2_STEPPER 2
-#define Y2_PIN_DIR PIN_M2_DIR
-#define Y2_PIN_DIAG PIN_M2_DIAG
-#define Y2_PIN_STEP PIN_M2_STEP
-#define Y2_PIN_EN PIN_M2_EN
 #define Y2_REVERSED 0
 #define Y2_RUN_CURRENT Y_RUN_CURRENT
 #define Y2_HOLD_CURRENT_MULTIPLIER Y_HOLD_CURRENT_MULTIPLIER
@@ -96,24 +84,23 @@
 #endif
 
 #ifdef JELLYFISH
-#define HAS_Z_AXIS 1
-#define Z_TMC (tmc1)
-#define Z_STEPPER (stepper1)
-#define Z_PIN_DIR PIN_M1_DIR
-#define Z_PIN_DIAG PIN_M1_DIAG
-#define Z_PIN_STEP PIN_M1_STEP
-#define Z_PIN_EN PIN_M1_EN
+#define HAS_Z_AXIS
+#define Z_STEPPER 1
+// #define Z_PIN_DIR PIN_M1_DIR
+// #define Z_PIN_DIAG PIN_M1_DIAG
+// #define Z_PIN_STEP PIN_M1_STEP
+// #define Z_PIN_EN PIN_M1_EN
 // Based on testing with my own Z-Axis motor, 0.7A is a good balance between
 // heat dissipated and hold torque. It's important that the Z axis' hold torque
 // is high enough to not lose steps when the spring-loaded tip of the nozzle
 // is compressed.
-#define Z_REVERSED 0
+#define Z_REVERSED 1
 #define Z_RUN_CURRENT 0.7f
 #define Z_HOLD_CURRENT_MULTIPLIER 0.8f
 #define Z_DEFAULT_VELOCITY_MM_S 200.0f
 #define Z_DEFAULT_ACCELERATION_MM_S2 1000.0f
 #define Z_STEPS_PER_MM 160.0f
-#define Z_HOMING_SENSITIVITY 100
+#define Z_HOMING_SENSITIVITY 130
 #define Z_HOMING_VELOCITY_MM_S 200.0f
 #define Z_HOMING_ACCELERATION_MM_S2 8000.0f
 #define Z_HOMING_DISTANCE_MM 100.0f
@@ -126,24 +113,16 @@
 */
 
 #ifdef JELLYFISH
-#define HAS_A_AXIS 1
-#define A_TMC (tmc0)
-#define A_STEPPER (stepper0)
-#define A_PIN_DIR PIN_M0_DIR
-#define A_PIN_DIAG PIN_M0_DIAG
-#define A_PIN_STEP PIN_M0_STEP
-#define A_PIN_EN PIN_M0_EN
+#define HAS_A_AXIS
+#define A_STEPPER 0
+#define A_REVERSED 0
 #define A_RUN_CURRENT 0.2f
 #define A_HOLD_CURRENT_MULTIPLIER 0.5f
 #define A_STEPS_PER_DEG 17.778f
 
-#define HAS_B_AXIS 1
-#define B_TMC (tmc2)
-#define B_STEPPER (stepper2)
-#define B_PIN_DIR PIN_M2_DIR
-#define B_PIN_DIAG PIN_M2_DIAG
-#define B_PIN_STEP PIN_M2_STEP
-#define B_PIN_EN PIN_M2_EN
+#define HAS_B_AXIS
+#define B_STEPPER 2
+#define B_REVERSED 0
 #define B_RUN_CURRENT 0.2f
 #define B_HOLD_CURRENT_MULTIPLIER 0.5f
 #define B_STEPS_PER_DEG 17.778f
