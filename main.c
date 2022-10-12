@@ -194,7 +194,7 @@ static void run_m_command(struct lilg_Command cmd) {
         // M115 get firmware info
         // https://marlinfw.org/docs/gcode/M115.html
         case 115: {
-            printf("> firmware_name:Picostep\n");
+            printf("> firmware_name:Picostep board:" PICOSTEP_BOARD "\n");
         } break;
 
         // M122 TMC debugging

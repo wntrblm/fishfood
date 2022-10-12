@@ -10,6 +10,8 @@ set(CMAKE_CXX_STANDARD 17)
 pico_sdk_init()
 
 add_compile_definitions(PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64)
+add_compile_definitions(USBD_VID=0xCAFE)
+add_compile_definitions(USBD_MANUFACTURER="Winterbloom")
 
 list(APPEND PICOSTEP_SOURCES
   main.c
@@ -26,7 +28,7 @@ list(APPEND PICOSTEP_SOURCES
   drivers/xgzp6857d.c
   littleg/littleg.c)
 
-function(add_board_build board_name board_defines)
+function(add_board_build board_name)
   add_executable(${board_name} ${PICOSTEP_SOURCES})
 
   pico_generate_pio_header(${board_name} ${CMAKE_CURRENT_LIST_DIR}/drivers/neopixel.pio)
@@ -36,8 +38,8 @@ function(add_board_build board_name board_defines)
 
   target_include_directories(${board_name} PUBLIC ${CMAKE_CURRENT_LIST_DIR})
   target_link_libraries(${board_name} pico_stdlib hardware_pio hardware_dma hardware_irq hardware_i2c)
-  target_compile_definitions(${board_name} PUBLIC ${board_defines})
+  target_compile_definitions(${board_name} PUBLIC PICOSTEP_BOARD="${board_name}" ${ARGN})
 endfunction()
 
-add_board_build(starfish STARFISH=1)
-add_board_build(jellyfish JELLYFISH=1)
+add_board_build(starfish STARFISH=1 USBD_PID=0xAA68 USBD_PRODUCT="Starfish")
+add_board_build(jellyfish JELLYFISH=1 USBD_PID=0xAA69 USBD_PRODUCT="Jellyfish")
