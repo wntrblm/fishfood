@@ -129,7 +129,8 @@ static void run_g_command(struct lilg_Command cmd) {
     switch (cmd.G.real) {
         // Linear move
         // https://marlinfw.org/docs/gcode/G000-G001.html
-        case 0: {
+        case 0:
+        case 1: {
             // F is "feed rate", or velocity in mm/min
             if (LILG_FIELD(cmd, F).set) {
                 float vel_mm_s = lilg_Decimal_to_float(LILG_FIELD(cmd, F)) / 60.0f;
@@ -161,7 +162,7 @@ static void run_g_command(struct lilg_Command cmd) {
         // https://marlinfw.org/docs/gcode/G092.html
         case 92: {
             Machine_set_position(&machine, cmd);
-        }
+        } break;
 
         default:
             report_error_ln("unknown command G%i", cmd.G.real);
@@ -261,6 +262,12 @@ static void run_m_command(struct lilg_Command cmd) {
 
             int32_t pressure = XGZP6857D_read(PERIPH_I2C_INST, PERIPH_I2C_TIMEOUT);
             report_result_ln("pressure:%u", pressure);
+        } break;
+
+        // M400: Finish moves
+        // https://marlinfw.org/docs/gcode/M400.html
+        case 400: {
+            // no-op since Picostep does not reply to G0/G1 until moves are finished.
         } break;
 
         // M906 Set motor current
