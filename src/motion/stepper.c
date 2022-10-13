@@ -2,7 +2,7 @@
 #include "drivers/tmc2209_helper.h"
 #include "hardware/gpio.h"
 #include "pico/time.h"
-#include <stdio.h>
+#include "report.h"
 
 /*
     Public functions
@@ -49,7 +49,7 @@ bool Stepper_setup(struct Stepper* s) {
     gpio_pull_down(s->pin_diag);
 
     if (!TMC2209_write_config(s->tmc, s->pin_enn)) {
-        printf("Error configuring TMC2209!");
+        report_error_ln("error configuring TMC2209 @ %u", s->tmc->uart_address);
         return false;
     }
 

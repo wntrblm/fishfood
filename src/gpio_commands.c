@@ -1,12 +1,13 @@
 #include "gpio_commands.h"
 #include "config/pins.h"
 #include "hardware/gpio.h"
+#include "report.h"
 #include <stdio.h>
 
 void gpio_commands_m42_set_pin(const struct lilg_Command cmd) {
     uint8_t pin_index = LILG_FIELD(cmd, P).real;
     if (pin_index >= M42_PIN_TABLE_LEN) {
-        printf("! No pin at index %u\n", pin_index);
+        report_error_ln("no pin at index %u", pin_index);
         return;
     }
 
@@ -37,7 +38,7 @@ void gpio_commands_m42_set_pin(const struct lilg_Command cmd) {
                 gpio_pull_down(pin_desc.pin);
             } break;
             default: {
-                printf("! Invalid type %u, must be 0, 1, 2, or 3.\n", LILG_FIELD(cmd, S).real);
+                report_error_ln("invalid type %u, must be 0, 1, 2, or 3.", LILG_FIELD(cmd, S).real);
                 return;
             };
         }
@@ -46,7 +47,7 @@ void gpio_commands_m42_set_pin(const struct lilg_Command cmd) {
     if (LILG_FIELD(cmd, S).set) {
         bool val = LILG_FIELD(cmd, S).real > 0 ? true : false;
         gpio_put(pin_desc.pin, val);
-        printf("> P:%u name:%s GPIO:%u S:%u\n", pin_index, pin_desc.name, pin_desc.pin, val);
+        report_result_ln("P:%u name:%s GPIO:%u S:%u", pin_index, pin_desc.name, pin_desc.pin, val);
     }
 }
 
@@ -55,8 +56,8 @@ void gpio_commands_m43_report_pin(const struct lilg_Command cmd) {
         // Report all pins
         for (size_t i = 0; i < M42_PIN_TABLE_LEN; i++) {
             const struct M42PinTableEntry pin_desc = M42_PIN_TABLE[i];
-            printf(
-                "> P:%u name:%s GPIO:%u dir:%s state:%u\n",
+            report_result_ln(
+                "P:%u name:%s GPIO:%u dir:%s state:%u",
                 i,
                 pin_desc.name,
                 pin_desc.pin,
@@ -66,14 +67,14 @@ void gpio_commands_m43_report_pin(const struct lilg_Command cmd) {
     } else {
         uint8_t pin_index = LILG_FIELD(cmd, P).real;
         if (pin_index >= M42_PIN_TABLE_LEN) {
-            printf("! No pin at index %u\n", pin_index);
+            report_error_ln("no pin at index %u", pin_index);
             return;
         }
 
         const struct M42PinTableEntry pin_desc = M42_PIN_TABLE[pin_index];
 
-        printf(
-            "> P:%u name:%s GPIO:%u dir:%s state:%u",
+        report_result_ln(
+            "P:%u name:%s GPIO:%u dir:%s state:%u",
             pin_index,
             pin_desc.name,
             pin_desc.pin,

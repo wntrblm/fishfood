@@ -1,13 +1,6 @@
 #include "tmc_uart.h"
 #include "hardware/uart.h"
 #include <string.h>
-#include <stdio.h>
-
-static inline void print_hex_array(uint8_t* data, size_t len) {
-    printf("[");
-    for (size_t i = 0; i < len; i++) { printf("0x%02X ", data[i]); }
-    printf("]\n");
-}
 
 void tmc_uart_read_write(
     struct TMC2209* tmc, uint8_t* send_buf, size_t send_len, uint8_t* receive_buf, size_t receive_len) {
@@ -36,7 +29,7 @@ void tmc_uart_read_write(
             rx_num++;
 
             if (!seen_sync) {
-                if(byte == 0x05) {
+                if (byte == 0x05) {
                     receive_buf[0] = byte;
                     seen_sync = true;
                     continue;
@@ -50,15 +43,13 @@ void tmc_uart_read_write(
                 } else if (byte == 0x05) {
                     continue;
                 } else {
-                    //printf("Saw incorrect addr byte 0x%02x, resetting...\n", byte);
+                    // printf("Saw incorrect addr byte 0x%02x, resetting...\n", byte);
                     seen_sync = false;
                 }
             }
         }
 
         // Now read the rest of the reply.
-        for(size_t n = 2; n < receive_len; n++) {
-            receive_buf[n] = uart_getc(tmc->uart);
-        }
+        for (size_t n = 2; n < receive_len; n++) { receive_buf[n] = uart_getc(tmc->uart); }
     }
 }

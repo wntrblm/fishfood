@@ -1,17 +1,16 @@
-#include <stdio.h>
-#include "pico/time.h"
 #include "xgzp6857d.h"
+#include "pico/time.h"
+#include "report.h"
 
 #define XGZP6857D_ADDR 0x6D
 
-
-int32_t XGZP6857D_read(i2c_inst_t *i2c, uint timeout_us) {
+int32_t XGZP6857D_read(i2c_inst_t* i2c, uint timeout_us) {
     // Configure the measurement parameters.
     uint8_t buf[2] = {0x30, 0x0A};
     int32_t result = i2c_write_timeout_us(i2c, XGZP6857D_ADDR, buf, 2, false, timeout_us);
 
     if (result < 0) {
-        printf("! Failed to setup measurement.\n");
+        report_error_ln("failed to setup XGZP6857D measurement");
         return -1;
     }
 

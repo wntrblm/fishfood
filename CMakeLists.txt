@@ -27,6 +27,7 @@ list(APPEND PICOSTEP_SOURCES
   src/motion/linear_axis.c
   src/motion/rotational_axis.c
   src/motion/stepper.c
+  src/report.c
 )
 
 function(add_board_build board_name)

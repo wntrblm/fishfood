@@ -15,6 +15,7 @@
 #include "pico/bootrom.h"
 #include "pico/stdlib.h"
 #include "pico/time.h"
+#include "report.h"
 #include <math.h>
 #include <stdio.h>
 
@@ -50,26 +51,26 @@ int main() {
     while (!stdio_usb_connected()) {}
     sleep_ms(1000);
 
-    printf("| Starting I2C peripheral bus...\n");
+    report_debug_ln("starting I2C peripheral bus...");
     i2c_init(PERIPH_I2C_INST, PERIPH_I2C_SPEED);
     gpio_set_function(PIN_I2C_SDA, GPIO_FUNC_I2C);
     gpio_set_function(PIN_I2C_SCL, GPIO_FUNC_I2C);
     i2c_commands_init(&i2c_commands_state);
 
-    printf("| Starting TMC UART...\n");
+    report_debug_ln("starting TMC UART...");
     uart_init(TMC_UART_INST, 115200);
     gpio_set_function(PIN_UART_TX, GPIO_FUNC_UART);
     gpio_set_function(PIN_UART_RX, GPIO_FUNC_UART);
 
-    printf("| Configuring motion and stepper motors...\n");
+    report_debug_ln("configuring motion and stepper motors...");
     // TODO: Check for errors!
     Machine_init(&machine);
     Machine_setup(&machine);
 
-    printf("| Enabling steppers...\n");
+    report_info_ln("enabling steppers...");
     Machine_enable_steppers(&machine);
 
-    printf("| Ready!\n");
+    report_info_ln("ready");
     Neopixel_set_all(pixels, NUM_PIXELS, 0, 0, 255);
     Neopixel_write(pixels, NUM_PIXELS);
 
@@ -87,8 +88,10 @@ int main() {
         process_incoming_char((char)(in_c));
     }
 
-    printf("! Main loop exited due to end of file on stdin\n");
+    report_error_ln("main() loop exited due to end of file on stdin");
 }
+
+static inline void okay() { printf("\nok\n"); }
 
 static void process_incoming_char(char c) {
     static struct lilg_Command cmd = {};
@@ -100,8 +103,8 @@ static void process_incoming_char(char c) {
     }
 
     if (result == LILG_INVALID) {
-        printf("! Could not parse command\n");
-        printf("ok\n");
+        report_error_ln("could not parse command");
+        okay();
         return;
     }
 
@@ -115,11 +118,11 @@ static void process_incoming_char(char c) {
         } break;
 
         default: {
-            printf("! Unexpected command %c%i\n", cmd.first_field, LILG_FIELDC(cmd, cmd.first_field));
+            report_error_ln("unexpected command %c%i\n", cmd.first_field, LILG_FIELDC(cmd, cmd.first_field));
         } break;
     }
 
-    printf("ok\n");
+    okay();
 }
 
 static void run_g_command(struct lilg_Command cmd) {
@@ -155,7 +158,7 @@ static void run_g_command(struct lilg_Command cmd) {
         } break;
 
         default:
-            printf("! Unknown command G%i\n", cmd.G.real);
+            report_error_ln("unknown command G%i", cmd.G.real);
             break;
     }
 }
@@ -194,7 +197,7 @@ static void run_m_command(struct lilg_Command cmd) {
         // M115 get firmware info
         // https://marlinfw.org/docs/gcode/M115.html
         case 115: {
-            printf("> firmware_name:Picostep board:" PICOSTEP_BOARD "\n");
+            report_result_ln("FIRMWARE_NAME:Picostep MACHINE_TYPE:" PICOSTEP_BOARD);
         } break;
 
         // M122 TMC debugging
@@ -211,7 +214,7 @@ static void run_m_command(struct lilg_Command cmd) {
             int32_t b = LILG_FIELD(cmd, B).real;
             Neopixel_set_all(pixels, NUM_PIXELS, r, g, b);
             Neopixel_write(pixels, NUM_PIXELS);
-            printf("> R:%i G:%i B: %i\n", r, g, b);
+            report_result_ln("R:%i G:%i B:%i", r, g, b);
         } break;
 
         // M204 Set Starting Acceleration
@@ -220,7 +223,6 @@ static void run_m_command(struct lilg_Command cmd) {
             if (LILG_FIELD(cmd, T).set) {
                 float accel = lilg_Decimal_to_float(LILG_FIELD(cmd, T));
                 Machine_set_linear_acceleration(&machine, accel);
-                printf("> T:%0.2f mm/s^2\n", accel);
             }
         } break;
 
@@ -247,12 +249,12 @@ static void run_m_command(struct lilg_Command cmd) {
             uint8_t which = LILG_FIELD(cmd, P).real == 0 ? 0x08 : 0x04;
 
             if (pca9495a_switch_channel(PERIPH_I2C_INST, I2C_MUX_ADDR, which, PERIPH_I2C_TIMEOUT) < 0) {
-                printf("! Failed to change I2C multiplexer configuration.\n");
+                report_error_ln("failed to change I2C multiplexer configuration");
                 return;
             }
 
             int32_t pressure = XGZP6857D_read(PERIPH_I2C_INST, PERIPH_I2C_TIMEOUT);
-            printf("> Pressure: %u\n", pressure);
+            report_result_ln("pressure:%u", pressure);
         } break;
 
         // M906 Set motor current
@@ -274,7 +276,7 @@ static void run_m_command(struct lilg_Command cmd) {
         } break;
 
         default:
-            printf("! Unknown command M%i\n", cmd.M.real);
+            report_error_ln("unknown command M%i\n", cmd.M.real);
             break;
     }
 }

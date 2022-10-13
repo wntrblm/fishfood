@@ -2,8 +2,8 @@
 #include "config/motion.h"
 #include "drivers/tmc2209_helper.h"
 #include "hardware/sync.h"
+#include "report.h"
 #include <math.h>
-#include <stdio.h>
 #include <stdlib.h>
 
 /*
@@ -27,16 +27,15 @@ void RotationalAxis_start_move(struct RotationalAxis* m, float dest_deg) {
     m->_next_step_at = make_timeout_time_us(m->_step_interval);
 
     float actual_delta_deg = delta_steps * (1.0f / m->steps_per_deg);
-    printf("> Moving %c axis %0.2f deg (%i steps)\n", m->name, actual_delta_deg, m->stepper->direction * m->_delta_steps);
+    report_info_ln(
+        "moving %c axis %0.2f deg (%i steps)", m->name, actual_delta_deg, m->stepper->direction * m->_delta_steps);
 }
 
 void RotationalAxis_wait_for_move(struct RotationalAxis* m) {
-    while (RotationalAxis_is_moving(m)) {
-        RotationalAxis_step(m);
-    }
+    while (RotationalAxis_is_moving(m)) { RotationalAxis_step(m); }
 
-    printf(
-        "> %c axis moved to %0.3f (%i steps).\n", m->name, RotationalAxis_get_position_deg(m), m->stepper->total_steps);
+    report_info_ln(
+        "%c axis moved to %0.3f (%i steps)", m->name, RotationalAxis_get_position_deg(m), m->stepper->total_steps);
 }
 
 float RotationalAxis_get_position_deg(struct RotationalAxis* m) {

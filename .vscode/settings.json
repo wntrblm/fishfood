@@ -20,4 +20,5 @@
     "cSpell.words": [
         "decel"
     ],
+    "editor.formatOnSave": true,
 }

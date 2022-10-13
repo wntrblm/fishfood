@@ -2,8 +2,8 @@
 #include "config/motion.h"
 #include "hardware/gpio.h"
 #include "hardware/platform_defs.h"
+#include "report.h"
 #include <math.h>
-#include <stdio.h>
 #include <stdlib.h>
 
 /*
@@ -58,7 +58,7 @@ void LinearAxis_home(struct LinearAxis* m) {
     //
     // 1: Initial seek
     //
-    printf("> Homing %c axis with sensitivity at %u...\n", m->name, m->homing_sensitivity);
+    report_debug_ln("homing %c axis with sensitivity at %u...", m->name, m->homing_sensitivity);
 
     float old_velocity = m->velocity_mm_s;
     float old_acceleration = m->acceleration_mm_s2;
@@ -71,7 +71,7 @@ void LinearAxis_home(struct LinearAxis* m) {
     //
     // 2. Bounce
     //
-    printf("> Endstop found, bouncing...\n");
+    report_debug_ln("endstop found, bouncing...");
 
     LinearAxis_start_move(m, LinearAxis_calculate_move(m, -(m->homing_direction * m->homing_bounce_mm)));
 
@@ -80,7 +80,7 @@ void LinearAxis_home(struct LinearAxis* m) {
     //
     // 3. Re-seek
     //
-    printf("> Re-seeking...\n");
+    report_debug_ln("re-seeking...");
 
     m->velocity_mm_s = m->homing_velocity_mm_s;
     m->acceleration_mm_s2 = m->homing_acceleration_mm_s2;
@@ -88,7 +88,7 @@ void LinearAxis_home(struct LinearAxis* m) {
 
     m->velocity_mm_s = old_velocity;
     m->acceleration_mm_s2 = old_acceleration;
-    printf("> %c axis homing complete!\n", m->name);
+    report_result_ln("%c axis homed", m->name);
 }
 
 struct LinearAxisMovement LinearAxis_calculate_move(struct LinearAxis* m, float dest_mm) {
@@ -148,7 +148,8 @@ void LinearAxis_start_move(struct LinearAxis* m, struct LinearAxisMovement move)
     // Calculate the *actual* distance that the motor will move based on the
     // stepping resolution.
     float actual_delta_mm = move.direction * (float)(move.total_step_count) * (1.0f / m->steps_per_mm);
-    printf("> Moving %c axis %0.3f mm (%i steps)\n", m->name, actual_delta_mm, move.direction * move.total_step_count);
+    report_info_ln(
+        "moving %c axis %0.3f mm (%i steps)", m->name, actual_delta_mm, move.direction * move.total_step_count);
 }
 
 void LinearAxis_wait_for_move(struct LinearAxis* m) {
@@ -162,13 +163,13 @@ void LinearAxis_wait_for_move(struct LinearAxis* m) {
         LinearAxis_timed_step(m, get_absolute_time());
 
         if (absolute_time_diff_us(get_absolute_time(), report_time) <= 0) {
-            printf("> Moved %d/%d steps\n", m->_current_move.steps_taken, m->_current_move.total_step_count);
+            report_info_ln("moved %d/%d steps", m->_current_move.steps_taken, m->_current_move.total_step_count);
             report_time = make_timeout_time_ms(1000);
         }
-        // tight_loop_contents();
     }
 
-    printf("> %c axis moved to %0.3f (%i steps).\n", m->name, LinearAxis_get_position_mm(m), m->stepper->total_steps);
+    report_info_ln(
+        "%c axis moved to %0.3f (%i steps)", m->name, LinearAxis_get_position_mm(m), m->stepper->total_steps);
 }
 
 float LinearAxis_get_position_mm(struct LinearAxis* m) {
