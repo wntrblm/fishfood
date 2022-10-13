@@ -14,29 +14,29 @@ add_compile_definitions(USBD_VID=0xCAFE)
 add_compile_definitions(USBD_MANUFACTURER="Winterbloom")
 
 list(APPEND PICOSTEP_SOURCES
-  main.c
-  linear_axis.c
-  rotational_axis.c
-  machine.c
-  i2c_commands.c
-  gpio_commands.c
-  stepper.c
-  drivers/tmc2209.c
-  drivers/tmc2209_helper.c
-  drivers/tmc_uart.c
-  drivers/neopixel.c
-  drivers/xgzp6857d.c
-  littleg/littleg.c)
+  src/main.c
+  src/linear_axis.c
+  src/rotational_axis.c
+  src/machine.c
+  src/i2c_commands.c
+  src/gpio_commands.c
+  src/stepper.c
+  src/drivers/tmc2209.c
+  src/drivers/tmc2209_helper.c
+  src/drivers/tmc_uart.c
+  src/drivers/neopixel.c
+  src/drivers/xgzp6857d.c
+  src/littleg/littleg.c)
 
 function(add_board_build board_name)
   add_executable(${board_name} ${PICOSTEP_SOURCES})
 
-  pico_generate_pio_header(${board_name} ${CMAKE_CURRENT_LIST_DIR}/drivers/neopixel.pio)
+  pico_generate_pio_header(${board_name} ${CMAKE_CURRENT_LIST_DIR}/src/drivers/neopixel.pio)
   pico_enable_stdio_uart(${board_name} 0)
   pico_enable_stdio_usb(${board_name} 1)
   pico_add_extra_outputs(${board_name})
 
-  target_include_directories(${board_name} PUBLIC ${CMAKE_CURRENT_LIST_DIR})
+  target_include_directories(${board_name} PUBLIC ${CMAKE_CURRENT_LIST_DIR}/src)
   target_link_libraries(${board_name} pico_stdlib hardware_pio hardware_dma hardware_irq hardware_i2c)
   target_compile_definitions(${board_name} PUBLIC PICOSTEP_BOARD="${board_name}" ${ARGN})
 endfunction()
