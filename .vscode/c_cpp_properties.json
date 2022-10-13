@@ -5,7 +5,10 @@
             "includePath": [
                 "${workspaceFolder}/**"
             ],
-            "defines": [],
+            "defines": [
+                "JELLFISH",
+                "STARFISH"
+            ],
             "macFrameworkPath": [],
             "compilerPath": "/Users/stargirl/.local/gcc-arm/bin/arm-none-eabi-gcc",
             "intelliSenseMode": "macos-gcc-arm",

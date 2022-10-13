@@ -157,6 +157,12 @@ static void run_g_command(struct lilg_Command cmd) {
             machine.absolute_positioning = false;
         } break;
 
+        // Set position (without movement)
+        // https://marlinfw.org/docs/gcode/G092.html
+        case 92: {
+            Machine_set_position(&machine, cmd);
+        }
+
         default:
             report_error_ln("unknown command G%i", cmd.G.real);
             break;

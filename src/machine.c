@@ -314,6 +314,34 @@ void Machine_report_position(struct Machine* m) {
     report_result_ln("");
 }
 
+void Machine_set_position(struct Machine* m, const struct lilg_Command cmd) {
+#ifdef HAS_XY_AXES
+    if (cmd.X.set) {
+        LinearAxis_set_position_mm(&(m->x), lilg_Decimal_to_float(cmd.X));
+    }
+    if (cmd.Y.set) {
+        LinearAxis_set_position_mm(&(m->y), lilg_Decimal_to_float(cmd.Y));
+    }
+#endif
+#ifdef HAS_Z_AXIS
+    if (cmd.Z.set) {
+        LinearAxis_set_position_mm(&(m->z), lilg_Decimal_to_float(cmd.Z));
+    }
+#endif
+#ifdef HAS_A_AXIS
+    if (LILG_FIELD(cmd, A).set) {
+        RotationalAxis_set_position_deg(&(m->a), lilg_Decimal_to_float(LILG_FIELD(cmd, A)));
+    }
+#endif
+#ifdef HAS_B_AXIS
+    if (LILG_FIELD(cmd, B).set) {
+        RotationalAxis_set_position_deg(&(m->b), lilg_Decimal_to_float(LILG_FIELD(cmd, B)));
+    }
+#endif
+
+    Machine_report_position(m);
+}
+
 void Machine_report_tmc_info(struct Machine* m) {
     TMC2209_print_all(&(m->tmc[0]));
     TMC2209_print_all(&(m->tmc[1]));

@@ -26,3 +26,4 @@ void RotationalAxis_step(struct RotationalAxis* m);
 inline bool RotationalAxis_is_moving(struct RotationalAxis* m) { return m->_delta_steps != 0; }
 void RotationalAxis_stop(struct RotationalAxis* m);
 float RotationalAxis_get_position_deg(struct RotationalAxis* m);
+void RotationalAxis_set_position_deg(struct RotationalAxis* m, float deg);

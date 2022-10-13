@@ -74,6 +74,8 @@ void LinearAxis_wait_for_move(struct LinearAxis* m);
 
 float LinearAxis_get_position_mm(struct LinearAxis* m);
 
+void LinearAxis_set_position_mm(struct LinearAxis* m, float mm);
+
 inline void LinearAxis_reset_position(struct LinearAxis* m) {
     m->stepper->total_steps = 0;
     m->_current_move = (struct LinearAxisMovement){};

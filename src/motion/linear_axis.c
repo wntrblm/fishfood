@@ -176,6 +176,10 @@ float LinearAxis_get_position_mm(struct LinearAxis* m) {
     return (float)(m->stepper->total_steps) * (1.0f / m->steps_per_mm);
 }
 
+void LinearAxis_set_position_mm(struct LinearAxis* m, float mm) {
+    m->stepper->total_steps = (int32_t)(lroundf(ceilf(mm * m->steps_per_mm)));
+}
+
 /*
     Private methods
 */

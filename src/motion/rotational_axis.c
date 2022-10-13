@@ -42,6 +42,10 @@ float RotationalAxis_get_position_deg(struct RotationalAxis* m) {
     return ((float)(m->stepper->total_steps)) * (1.0f / m->steps_per_deg);
 }
 
+void RotationalAxis_set_position_deg(struct RotationalAxis* m, float deg) {
+    m->stepper->total_steps = (int32_t)(lroundf(ceilf(deg * m->steps_per_deg)));
+}
+
 void RotationalAxis_step(struct RotationalAxis* m) {
     if (m->_delta_steps == 0) {
         return;
