@@ -2,7 +2,7 @@
 #include "config/pins.h"
 #include "hardware/gpio.h"
 #include "hardware/i2c.h"
-#include "wntr_pack.h"
+#include "libwinter/wntr_pack.h"
 #include "i2c_commands.h"
 
 /*

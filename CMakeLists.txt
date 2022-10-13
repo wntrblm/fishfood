@@ -14,19 +14,20 @@ add_compile_definitions(USBD_VID=0xCAFE)
 add_compile_definitions(USBD_MANUFACTURER="Winterbloom")
 
 list(APPEND PICOSTEP_SOURCES
-  src/main.c
-  src/linear_axis.c
-  src/rotational_axis.c
-  src/machine.c
-  src/i2c_commands.c
-  src/gpio_commands.c
-  src/stepper.c
-  src/drivers/tmc2209.c
-  src/drivers/tmc2209_helper.c
-  src/drivers/tmc_uart.c
   src/drivers/neopixel.c
+  src/drivers/tmc_uart.c
+  src/drivers/tmc2209_helper.c
+  src/drivers/tmc2209.c
   src/drivers/xgzp6857d.c
-  src/littleg/littleg.c)
+  src/gpio_commands.c
+  src/i2c_commands.c
+  src/littleg/littleg.c
+  src/machine.c
+  src/main.c
+  src/motion/linear_axis.c
+  src/motion/rotational_axis.c
+  src/motion/stepper.c
+)
 
 function(add_board_build board_name)
   add_executable(${board_name} ${PICOSTEP_SOURCES})

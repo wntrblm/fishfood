@@ -4,10 +4,10 @@
 #include "drivers/tmc2209_helper.h"
 #include "drivers/tmc_uart.h"
 #include "littleg/littleg.h"
-#include "linear_axis.h"
-#include "rotational_axis.h"
-#include "stepper.h"
-#include "bresenham.h"
+#include "motion/linear_axis.h"
+#include "motion/rotational_axis.h"
+#include "motion/stepper.h"
+#include "motion/bresenham.h"
 
 struct Machine {
     struct TMC2209 tmc[3];
