@@ -24,7 +24,7 @@ int report(const char* prefix, bool newline, const char* format, va_list args) {
         }                                                                                                              \
         va_list args;                                                                                                  \
         va_start(args, format);                                                                                        \
-        int r = report("!> ", newline, format, args);                                                                  \
+        int r = report(prefix, newline, format, args);                                                                 \
         va_end(args);                                                                                                  \
         return r;                                                                                                      \
     }
@@ -32,4 +32,4 @@ int report(const char* prefix, bool newline, const char* format, va_list args) {
 report_opt_impl(error, true, "!> ");
 report_opt_impl(debug, debug_enabled, "?> ");
 report_opt_impl(info, info_enabled, ">> ");
-report_opt_impl(result, info_enabled, "");
+report_opt_impl(result, true, "");
