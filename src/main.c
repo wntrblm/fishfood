@@ -253,7 +253,7 @@ static void run_m_command(struct lilg_Command cmd) {
         // M263: I2C pressure sensor read
         // Non-standard
         case 263: {
-            uint8_t which = LILG_FIELD(cmd, P).real == 0 ? 0x08 : 0x04;
+            uint8_t which = LILG_FIELD(cmd, P).real == 0 ? 3 : 2;
 
             if (pca9495a_switch_channel(PERIPH_I2C_INST, I2C_MUX_ADDR, which, PERIPH_I2C_TIMEOUT) < 0) {
                 report_error_ln("failed to change I2C multiplexer configuration");
@@ -261,7 +261,10 @@ static void run_m_command(struct lilg_Command cmd) {
             }
 
             int32_t pressure = XGZP6857D_read(PERIPH_I2C_INST, PERIPH_I2C_TIMEOUT);
-            report_result_ln("pressure:%u", pressure);
+
+            if (pressure > 0) {
+                report_result_ln("pressure:%i", pressure);
+            }
         } break;
 
         // M400: Finish moves
