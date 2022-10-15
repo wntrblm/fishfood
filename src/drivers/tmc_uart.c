@@ -17,16 +17,11 @@ void tmc_uart_read_write(
         to see if the reply sync and address bytes are received.
     */
     if (receive_len > 0) {
-        uint8_t rx_bytes[64] = {};
-        size_t rx_num = 0;
         bool seen_sync = false;
-        uint8_t byte = 0;
 
         // Read until the sync byte is seen.
         while (true) {
-            byte = uart_getc(tmc->uart);
-            rx_bytes[rx_num] = byte;
-            rx_num++;
+            uint8_t byte = uart_getc(tmc->uart);
 
             if (!seen_sync) {
                 if (byte == 0x05) {

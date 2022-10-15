@@ -10,11 +10,12 @@ void report_set_debug_enabled(bool enabled) { debug_enabled = enabled; }
 void report_set_info_enabled(bool enabled) { info_enabled = enabled; }
 
 int report(const char* prefix, bool newline, const char* format, va_list args) {
-    printf(prefix);
-    vprintf(format, args);
+    printf("%s", prefix);
+    int res = vprintf(format, args);
     if (newline) {
-        printf("\n");
+        return res + printf("\n");
     }
+    return res;
 }
 
 #define report_opt_impl(name, check_var, prefix)                                                                       \

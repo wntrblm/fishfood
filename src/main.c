@@ -25,9 +25,6 @@ static uint8_t pixels[3 * NUM_PIXELS];
 static struct I2CCommandsState i2c_commands_state;
 static struct Machine machine;
 
-static repeating_timer_t step_timer;
-
-static int64_t step_timer_callback(alarm_id_t id, void* user_data);
 static void process_incoming_char(char c);
 static void run_g_command(struct lilg_Command cmd);
 static void run_m_command(struct lilg_Command cmd);
@@ -118,7 +115,7 @@ static void process_incoming_char(char c) {
         } break;
 
         default: {
-            report_error_ln("unexpected command %c%i\n", cmd.first_field, LILG_FIELDC(cmd, cmd.first_field));
+            report_error_ln("unexpected command %c%li\n", cmd.first_field, LILG_FIELDC(cmd, cmd.first_field).real);
         } break;
     }
 
@@ -165,7 +162,7 @@ static void run_g_command(struct lilg_Command cmd) {
         } break;
 
         default:
-            report_error_ln("unknown command G%i", cmd.G.real);
+            report_error_ln("unknown command G%li", cmd.G.real);
             break;
     }
 }
@@ -221,7 +218,7 @@ static void run_m_command(struct lilg_Command cmd) {
             int32_t b = LILG_FIELD(cmd, B).real;
             Neopixel_set_all(pixels, NUM_PIXELS, r, g, b);
             Neopixel_write(pixels, NUM_PIXELS);
-            report_result_ln("R:%i G:%i B:%i", r, g, b);
+            report_result_ln("R:%li G:%li B:%li", r, g, b);
         } break;
 
         // M204 Set Starting Acceleration
@@ -263,7 +260,7 @@ static void run_m_command(struct lilg_Command cmd) {
             int32_t pressure = XGZP6857D_read(PERIPH_I2C_INST, PERIPH_I2C_TIMEOUT);
 
             if (pressure > 0) {
-                report_result_ln("pressure:%i", pressure);
+                report_result_ln("pressure:%li", pressure);
             }
         } break;
 
@@ -292,7 +289,7 @@ static void run_m_command(struct lilg_Command cmd) {
         } break;
 
         default:
-            report_error_ln("unknown command M%i\n", cmd.M.real);
+            report_error_ln("unknown command M%li\n", cmd.M.real);
             break;
     }
 }

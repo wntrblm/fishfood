@@ -112,7 +112,7 @@ void Machine_set_linear_acceleration(struct Machine* m, float accel_mm_s2) {
     m->z.acceleration_mm_s2 = accel_mm_s2;
 #endif
 
-    report_result_ln("T:%0.2f mm/s^2", accel_mm_s2);
+    report_result_ln("T:%0.2f mm/s^2", (double)accel_mm_s2);
 }
 
 void Machine_set_motor_current(struct Machine* m, const struct lilg_Command cmd) {
@@ -170,7 +170,7 @@ void Machine_set_homing_sensitivity(struct Machine* m, const struct lilg_Command
     report_result_ln("");
 }
 
-void Machine_home(struct Machine* m, bool x, bool y, bool z) {
+void Machine_home(struct Machine* m, bool x __unused, bool y __unused, bool z __unused) {
 #ifdef HAS_XY_AXES
     if (x) {
         LinearAxis_home(&(m->x));
@@ -211,7 +211,7 @@ void __not_in_flash_func(bresenham_xy_move)(struct Machine* m, const struct lilg
     }
 
     report_info_ln(
-        "coordinated move: major axis: %c, minor axis: %c, major steps: %i, minor steps: %i",
+        "coordinated move: major axis: %c, minor axis: %c, major steps: %li, minor steps: %li",
         m->_major_axis->name,
         m->_minor_axis->name,
         m->_bresenham.x1,
@@ -220,7 +220,7 @@ void __not_in_flash_func(bresenham_xy_move)(struct Machine* m, const struct lilg
     LinearAxis_start_move(&(m->x), x_move);
     LinearAxis_start_move(&(m->y), y_move);
     while (LinearAxis_is_moving(m->_major_axis)) {
-        if (LinearAxis_timed_step(m->_major_axis, get_absolute_time())) {
+        if (LinearAxis_timed_step(m->_major_axis)) {
             if (Bresenham_step(&(m->_bresenham))) {
                 LinearAxis_direct_step(m->_minor_axis);
             }
@@ -256,7 +256,6 @@ void Machine_move(struct Machine* m, const struct lilg_Command cmd) {
 #ifdef HAS_Z_AXIS
     if (cmd.Z.set) {
         struct LinearAxisMovement move = calculate_linear_axis_move(m, &(m->z), cmd.Z);
-        float dest_mm = lilg_Decimal_to_float(cmd.Z);
         LinearAxis_start_move(&(m->z), move);
         LinearAxis_wait_for_move(&(m->z));
     }
@@ -287,29 +286,30 @@ void Machine_move(struct Machine* m, const struct lilg_Command cmd) {
 void Machine_report_position(struct Machine* m) {
     report_result("position:");
 #ifdef HAS_XY_AXES
-    report_result(" X:%0.3f Y:%0.3f", LinearAxis_get_position_mm(&(m->x)), LinearAxis_get_position_mm(&(m->y)));
+    report_result(
+        " X:%0.3f Y:%0.3f", (double)LinearAxis_get_position_mm(&(m->x)), (double)LinearAxis_get_position_mm(&(m->y)));
 #endif
 #ifdef HAS_Z_AXIS
-    report_result(" Z:%0.3f", LinearAxis_get_position_mm(&(m->z)));
+    report_result(" Z:%0.3f", (double)LinearAxis_get_position_mm(&(m->z)));
 #endif
 #ifdef HAS_A_AXIS
-    report_result(" A:%0.1f", RotationalAxis_get_position_deg(&(m->a)));
+    report_result(" A:%0.1f", (double)RotationalAxis_get_position_deg(&(m->a)));
 #endif
 #ifdef HAS_B_AXIS
-    report_result(" B:%0.1f", RotationalAxis_get_position_deg(&(m->b)));
+    report_result(" B:%0.1f", (double)RotationalAxis_get_position_deg(&(m->b)));
 #endif
     report_result(" count:");
 #ifdef HAS_XY_AXES
-    report_result(" X:%i Y:%i", m->x.stepper->total_steps, m->y.stepper->total_steps);
+    report_result(" X:%li Y:%li", m->x.stepper->total_steps, m->y.stepper->total_steps);
 #endif
 #ifdef HAS_Z_AXIS
-    report_result(" Z:%i", m->y.stepper->total_steps);
+    report_result(" Z:%li", m->y.stepper->total_steps);
 #endif
 #ifdef HAS_A_AXIS
-    report_result(" A:%i", m->a.stepper->total_steps);
+    report_result(" A:%li", m->a.stepper->total_steps);
 #endif
 #ifdef HAS_B_AXIS
-    report_result(" B:%i", m->z.stepper->total_steps);
+    report_result(" B:%li", m->z.stepper->total_steps);
 #endif
     report_result_ln("");
 }

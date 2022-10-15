@@ -9,9 +9,25 @@ set(CMAKE_CXX_STANDARD 17)
 
 pico_sdk_init()
 
-add_compile_definitions(PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64)
-add_compile_definitions(USBD_VID=0xCAFE)
-add_compile_definitions(USBD_MANUFACTURER="Winterbloom")
+add_compile_options(
+  -fdiagnostics-color=always
+  -W
+  -Wall
+  -Wextra
+  -Werror
+  # -Wshadow
+  -Wdouble-promotion
+  -Wformat=2
+  -Wno-format-zero-length
+  -Wno-format-nonliteral
+)
+
+add_compile_definitions(
+  # The crystal used for Jellyfish and Starfish needs a bit more time to boot.
+  PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64
+  USBD_VID=0xCAFE
+  USBD_MANUFACTURER="Winterbloom"
+)
 
 list(APPEND PICOSTEP_SOURCES
   src/drivers/neopixel.c

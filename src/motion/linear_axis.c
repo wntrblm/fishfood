@@ -10,7 +10,7 @@
     Forward declarations
 */
 
-void LinearAxis_calculate_step_interval(struct LinearAxis* m, const absolute_time_t now);
+void LinearAxis_calculate_step_interval(struct LinearAxis* m);
 
 /*
     Public methods
@@ -34,7 +34,7 @@ void stallguard_seek(struct LinearAxis* m, float dist_mm) {
 
     bool check_for_stall = false;
     while (true) {
-        LinearAxis_timed_step(m, get_absolute_time());
+        LinearAxis_timed_step(m);
 
         // Once the axis is up to speed, enable stallguard and watch for stalls
         if (m->_current_move.steps_taken == m->_current_move.accel_step_count) {
@@ -75,7 +75,7 @@ void LinearAxis_home(struct LinearAxis* m) {
 
     LinearAxis_start_move(m, LinearAxis_calculate_move(m, -(m->homing_direction * m->homing_bounce_mm)));
 
-    while (LinearAxis_is_moving(m)) { LinearAxis_timed_step(m, get_absolute_time()); }
+    while (LinearAxis_is_moving(m)) { LinearAxis_timed_step(m); }
 
     //
     // 3. Re-seek
@@ -149,7 +149,10 @@ void LinearAxis_start_move(struct LinearAxis* m, struct LinearAxisMovement move)
     // stepping resolution.
     float actual_delta_mm = move.direction * (float)(move.total_step_count) * (1.0f / m->steps_per_mm);
     report_info_ln(
-        "moving %c axis %0.3f mm (%i steps)", m->name, actual_delta_mm, move.direction * move.total_step_count);
+        "moving %c axis %0.3f mm (%li steps)",
+        m->name,
+        (double)actual_delta_mm,
+        move.direction * move.total_step_count);
 }
 
 void LinearAxis_wait_for_move(struct LinearAxis* m) {
@@ -160,16 +163,16 @@ void LinearAxis_wait_for_move(struct LinearAxis* m) {
     absolute_time_t report_time = make_timeout_time_ms(1000);
 
     while (LinearAxis_is_moving(m)) {
-        LinearAxis_timed_step(m, get_absolute_time());
+        LinearAxis_timed_step(m);
 
         if (absolute_time_diff_us(get_absolute_time(), report_time) <= 0) {
-            report_info_ln("moved %d/%d steps", m->_current_move.steps_taken, m->_current_move.total_step_count);
+            report_info_ln("moved %li/%li steps", m->_current_move.steps_taken, m->_current_move.total_step_count);
             report_time = make_timeout_time_ms(1000);
         }
     }
 
     report_info_ln(
-        "%c axis moved to %0.3f (%i steps)", m->name, LinearAxis_get_position_mm(m), m->stepper->total_steps);
+        "%c axis moved to %0.3f (%li steps)", m->name, (double)LinearAxis_get_position_mm(m), m->stepper->total_steps);
 }
 
 float LinearAxis_get_position_mm(struct LinearAxis* m) {
@@ -204,21 +207,20 @@ void __not_in_flash_func(LinearAxis_direct_step)(struct LinearAxis* m) {
     }
 }
 
-bool __not_in_flash_func(LinearAxis_timed_step)(struct LinearAxis* m, const absolute_time_t now) {
+bool __not_in_flash_func(LinearAxis_timed_step)(struct LinearAxis* m) {
     // Is it time to step yet?
     if (absolute_time_diff_us(get_absolute_time(), m->_next_step_at) > 0) {
         return false;
     }
 
     LinearAxis_direct_step(m);
-    LinearAxis_calculate_step_interval(m, now);
+    LinearAxis_calculate_step_interval(m);
     m->_next_step_at = make_timeout_time_us(m->_step_interval);
 
     return true;
 }
 
-__attribute__((optimize(3))) void
-__not_in_flash_func(LinearAxis_calculate_step_interval)(struct LinearAxis* m, const absolute_time_t now) {
+__attribute__((optimize(3))) void __not_in_flash_func(LinearAxis_calculate_step_interval)(struct LinearAxis* m) {
     // Calculate instantenous velocity at the current
     // distance traveled.
     float distance = m->_current_move.steps_taken * (1.0f / m->steps_per_mm);

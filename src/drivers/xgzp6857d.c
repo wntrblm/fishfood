@@ -10,7 +10,7 @@ int32_t XGZP6857D_read(i2c_inst_t* i2c, uint timeout_us) {
     int32_t result = i2c_write_timeout_us(i2c, XGZP6857D_ADDR, buf, 2, false, timeout_us);
 
     if (result < 0) {
-        report_error_ln("failed to setup XGZP6857D measurement error %i", result);
+        report_error_ln("failed to setup XGZP6857D measurement error %li", result);
         return -1;
     }
 

@@ -85,6 +85,6 @@ inline bool LinearAxis_is_moving(struct LinearAxis* m) { return m->_current_move
 
 inline void LinearAxis_stop(struct LinearAxis* m) { m->_current_move = (struct LinearAxisMovement){}; }
 
-bool LinearAxis_timed_step(struct LinearAxis* m, const absolute_time_t now);
+bool LinearAxis_timed_step(struct LinearAxis* m);
 
 void LinearAxis_direct_step(struct LinearAxis* m);

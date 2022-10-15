@@ -28,14 +28,20 @@ void RotationalAxis_start_move(struct RotationalAxis* m, float dest_deg) {
 
     float actual_delta_deg = delta_steps * (1.0f / m->steps_per_deg);
     report_info_ln(
-        "moving %c axis %0.2f deg (%i steps)", m->name, actual_delta_deg, m->stepper->direction * m->_delta_steps);
+        "moving %c axis %0.2f deg (%li steps)",
+        m->name,
+        (double)actual_delta_deg,
+        m->stepper->direction * m->_delta_steps);
 }
 
 void RotationalAxis_wait_for_move(struct RotationalAxis* m) {
     while (RotationalAxis_is_moving(m)) { RotationalAxis_step(m); }
 
     report_info_ln(
-        "%c axis moved to %0.3f (%i steps)", m->name, RotationalAxis_get_position_deg(m), m->stepper->total_steps);
+        "%c axis moved to %0.3f (%li steps)",
+        m->name,
+        (double)RotationalAxis_get_position_deg(m),
+        m->stepper->total_steps);
 }
 
 float RotationalAxis_get_position_deg(struct RotationalAxis* m) {

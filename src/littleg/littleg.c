@@ -62,7 +62,7 @@ static void parse_end_field() {
     }
 
     parser.command.fields[parser.field - 'A'] = parser.value;
-    if(parser.command.first_field == 0) {
+    if (parser.command.first_field == 0) {
         parser.command.first_field = parser.field;
     }
 
@@ -145,9 +145,9 @@ enum lilg_ParseResult lilg_parse(struct lilg_Command* command, char c) {
 void lilg_Command_print(struct lilg_Command* cmd) {
     printf("lilg_Command: \n");
     for (size_t n = 0; n < 25; n++) {
-        struct lilg_Decimal v = parser.command.fields[n];
+        struct lilg_Decimal v = cmd->fields[n];
         if (v.set) {
-            printf("%c:   %0.2f\n", (char)('A' + n), lilg_Decimal_to_float(parser.command.fields[n]));
+            printf("%c:   %0.2f\n", (char)('A' + n), (double)lilg_Decimal_to_float(cmd->fields[n]));
         }
     }
 }

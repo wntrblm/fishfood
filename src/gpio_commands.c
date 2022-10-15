@@ -38,7 +38,7 @@ void gpio_commands_m42_set_pin(const struct lilg_Command cmd) {
                 gpio_pull_down(pin_desc.pin);
             } break;
             default: {
-                report_error_ln("invalid type %u, must be 0, 1, 2, or 3.", LILG_FIELD(cmd, S).real);
+                report_error_ln("invalid type %li, must be 0, 1, 2, or 3.", LILG_FIELD(cmd, S).real);
                 return;
             };
         }

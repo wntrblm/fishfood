@@ -37,7 +37,7 @@
 bool TMC2209_write_config(struct TMC2209* tmc, uint32_t enable_pin);
 void TMC2209_print_all(struct TMC2209* tmc);
 
-bool TMC2209_set_current(struct TMC2209* tmc, float run_a, float hold_a);
+void TMC2209_set_current(struct TMC2209* tmc, float run_a, float hold_a);
 
 void TMC2209_print_GCONF(uint32_t gconf);
 void TMC2209_print_CHOPCONF(uint32_t chopconf);
