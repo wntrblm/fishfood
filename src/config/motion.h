@@ -1,7 +1,7 @@
 #pragma once
 
-#include "drivers/tmc2209_helper.h"
 #include "config/pins.h"
+#include "drivers/tmc2209_helper.h"
 
 /*
     Common configuration for all TMC2209 drivers.
@@ -86,10 +86,6 @@
 #ifdef JELLYFISH
 #define HAS_Z_AXIS
 #define Z_STEPPER 1
-// #define Z_PIN_DIR PIN_M1_DIR
-// #define Z_PIN_DIAG PIN_M1_DIAG
-// #define Z_PIN_STEP PIN_M1_STEP
-// #define Z_PIN_EN PIN_M1_EN
 // Based on testing with my own Z-Axis motor, 0.7A is a good balance between
 // heat dissipated and hold torque. It's important that the Z axis' hold torque
 // is high enough to not lose steps when the spring-loaded tip of the nozzle
@@ -101,11 +97,12 @@
 #define Z_DEFAULT_ACCELERATION_MM_S2 1000.0f
 #define Z_STEPS_PER_MM 160.0f
 #define Z_HOMING_SENSITIVITY 130
-#define Z_HOMING_VELOCITY_MM_S 200.0f
-#define Z_HOMING_ACCELERATION_MM_S2 8000.0f
+#define Z_HOMING_VELOCITY_MM_S 50.0f
+#define Z_HOMING_ACCELERATION_MM_S2 2000.0f
 #define Z_HOMING_DISTANCE_MM 100.0f
-#define Z_HOMING_BOUNCE_MM 20.0f
+#define Z_HOMING_BOUNCE_MM 5.0f
 #define Z_HOMING_DIR -1
+#define Z_HOME_ENDSTOP PIN_IN_2
 #endif
 
 /*

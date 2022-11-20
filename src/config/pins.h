@@ -1,5 +1,8 @@
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
+
 struct M42PinTableEntry {
     uint8_t pin;
     const char* name;

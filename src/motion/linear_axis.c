@@ -23,6 +23,7 @@ void LinearAxis_init(struct LinearAxis* m, char name, struct Stepper* stepper) {
     m->velocity_mm_s = 100.0f;
     m->acceleration_mm_s2 = 1000.0f;
     m->homing_sensitivity = 100;
+    m->endstop = 0;
 
     m->_current_move = (struct LinearAxisMovement){};
 }
@@ -52,7 +53,7 @@ void stallguard_seek(struct LinearAxis* m, float dist_mm) {
     Stepper_disable_stallguard(m->stepper);
 }
 
-void LinearAxis_home(struct LinearAxis* m) {
+void LinearAxis_sensorless_home(struct LinearAxis* m) {
     // TODO: Home both motors if the axis has two!
 
     //
@@ -85,6 +86,56 @@ void LinearAxis_home(struct LinearAxis* m) {
     m->velocity_mm_s = m->homing_velocity_mm_s;
     m->acceleration_mm_s2 = m->homing_acceleration_mm_s2;
     stallguard_seek(m, m->homing_direction * m->homing_bounce_mm * 2);
+
+    m->velocity_mm_s = old_velocity;
+    m->acceleration_mm_s2 = old_acceleration;
+    report_result_ln("%c axis homed", m->name);
+}
+
+void endstop_seek(struct LinearAxis* m, float dist_mm) {
+    LinearAxis_start_move(m, LinearAxis_calculate_move(m, dist_mm));
+
+    while (gpio_get(m->endstop) != 1) { LinearAxis_timed_step(m); }
+
+    LinearAxis_stop(m);
+    LinearAxis_reset_position(m);
+}
+
+void LinearAxis_endstop_home(struct LinearAxis* m) {
+    //
+    // 1: Initial seek
+    //
+    report_info_ln("homing %c axis using endstop %u...", m->name, m->endstop);
+
+    gpio_init(m->endstop);
+    gpio_set_dir(m->endstop, GPIO_IN);
+    gpio_pull_up(m->endstop);
+
+    float old_velocity = m->velocity_mm_s;
+    float old_acceleration = m->acceleration_mm_s2;
+    m->velocity_mm_s = m->homing_velocity_mm_s;
+    m->acceleration_mm_s2 = m->homing_acceleration_mm_s2;
+    m->stepper->total_steps = 0;
+
+    endstop_seek(m, m->homing_direction * m->homing_distance_mm);
+
+    //
+    // 2. Bounce
+    //
+    report_info_ln("endstop found, bouncing...");
+
+    LinearAxis_start_move(m, LinearAxis_calculate_move(m, -(m->homing_direction * m->homing_bounce_mm)));
+
+    while (LinearAxis_is_moving(m)) { LinearAxis_timed_step(m); }
+
+    //
+    // 3. Re-seek
+    //
+    report_info_ln("re-seeking...");
+
+    m->velocity_mm_s = m->homing_velocity_mm_s / 5.0f;
+    m->acceleration_mm_s2 = m->homing_acceleration_mm_s2 / 2.0f;
+    endstop_seek(m, m->homing_direction * m->homing_bounce_mm * 2);
 
     m->velocity_mm_s = old_velocity;
     m->acceleration_mm_s2 = old_acceleration;

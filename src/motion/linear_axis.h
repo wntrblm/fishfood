@@ -45,6 +45,8 @@ struct LinearAxis {
     // Homing sensitivity, used to set the TMC2209's stallguard threshold.
     // Higher = more sensitive.
     uint8_t homing_sensitivity;
+    // Endstop GPIO, if using endstop
+    uint8_t endstop;
 
     // internal stepping state
 
@@ -64,7 +66,8 @@ void LinearAxis_init(struct LinearAxis* m, char name, struct Stepper* stepper);
 
 inline void LinearAxis_setup_dual(struct LinearAxis* m, struct Stepper* stepper) { m->stepper2 = stepper; }
 
-void LinearAxis_home(struct LinearAxis* m);
+void LinearAxis_sensorless_home(struct LinearAxis* m);
+void LinearAxis_endstop_home(struct LinearAxis* m);
 
 struct LinearAxisMovement LinearAxis_calculate_move(struct LinearAxis* m, float dest_mm);
 

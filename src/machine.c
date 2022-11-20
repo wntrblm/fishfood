@@ -64,6 +64,9 @@ void Machine_init(struct Machine* m) {
 
 #ifdef HAS_Z_AXIS
     INIT_LINEAR_AXIS(z, Z);
+#ifdef Z_HOME_ENDSTOP
+    m->z.endstop = Z_HOME_ENDSTOP;
+#endif
 #endif
 
 #ifdef HAS_A_AXIS
@@ -173,15 +176,19 @@ void Machine_set_homing_sensitivity(struct Machine* m, const struct lilg_Command
 void Machine_home(struct Machine* m, bool x __unused, bool y __unused, bool z __unused) {
 #ifdef HAS_XY_AXES
     if (x) {
-        LinearAxis_home(&(m->x));
+        LinearAxis_sensorless_home(&(m->x));
     }
     if (y) {
-        LinearAxis_home(&(m->y));
+        LinearAxis_sensorless_home(&(m->y));
     }
 #endif
 #ifdef HAS_Z_AXIS
     if (z) {
-        LinearAxis_home(&(m->z));
+#ifdef Z_HOME_ENDSTOP
+        LinearAxis_endstop_home(&(m->z));
+#else
+        LinearAxis_sensorless_home(&(m->z));
+#endif
     }
 #endif
 }
