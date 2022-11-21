@@ -4,6 +4,8 @@
 #include "pico/time.h"
 #include "report.h"
 
+#define STEP_PULSE_DELAY 2
+
 /*
     Public functions
 */
@@ -82,10 +84,12 @@ bool Stepper_stalled(struct Stepper* s) {
 
 void Stepper_step(struct Stepper* s) {
     gpio_put(s->pin_dir, s->direction > 0 ? !s->reversed : s->reversed);
+    sleep_us(STEP_PULSE_DELAY);
 
     gpio_put(s->pin_step, true);
-    sleep_us(1);
+    sleep_us(STEP_PULSE_DELAY);
     gpio_put(s->pin_step, false);
+    sleep_us(STEP_PULSE_DELAY);
 
     s->total_steps += s->direction;
 }
@@ -93,12 +97,14 @@ void Stepper_step(struct Stepper* s) {
 void Stepper_step_two(struct Stepper* s1, struct Stepper* s2) {
     gpio_put(s1->pin_dir, s1->direction > 0 ? !s1->reversed : s1->reversed);
     gpio_put(s2->pin_dir, s2->direction > 0 ? !s2->reversed : s2->reversed);
+    sleep_us(STEP_PULSE_DELAY);
 
     gpio_put(s1->pin_step, true);
     gpio_put(s2->pin_step, true);
-    sleep_us(1);
+    sleep_us(STEP_PULSE_DELAY);
     gpio_put(s1->pin_step, false);
     gpio_put(s2->pin_step, false);
+    sleep_us(STEP_PULSE_DELAY);
 
     s1->total_steps += s1->direction;
     s2->total_steps += s2->direction;
