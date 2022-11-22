@@ -201,7 +201,7 @@ static void run_m_command(struct lilg_Command cmd) {
         // M115 get firmware info
         // https://marlinfw.org/docs/gcode/M115.html
         case 115: {
-            report_result_ln("FIRMWARE_NAME:Picostep MACHINE_TYPE:" PICOSTEP_BOARD);
+            report_result_ln("FIRMWARE_NAME:Fishfoosh MACHINE_TYPE:" FISHFOOD_BOARD);
         } break;
 
         // M122 TMC debugging
@@ -267,7 +267,7 @@ static void run_m_command(struct lilg_Command cmd) {
         // M400: Finish moves
         // https://marlinfw.org/docs/gcode/M400.html
         case 400: {
-            // no-op since Picostep does not reply to G0/G1 until moves are finished.
+            // no-op since Fishfood does not reply to G0/G1 until moves are finished.
         } break;
 
         // M906 Set motor current
