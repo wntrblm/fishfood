@@ -232,6 +232,7 @@ void __not_in_flash_func(bresenham_xy_move)(struct Machine* m, const struct lilg
 
     LinearAxis_start_move(&(m->x), x_move);
     LinearAxis_start_move(&(m->y), y_move);
+
     while (LinearAxis_is_moving(m->_major_axis)) {
         if (LinearAxis_timed_step(m->_major_axis)) {
             if (Bresenham_step(&(m->_bresenham))) {

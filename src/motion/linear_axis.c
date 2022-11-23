@@ -188,8 +188,11 @@ struct LinearAxisMovement LinearAxis_calculate_move(struct LinearAxis* m, float 
 
 void LinearAxis_start_move(struct LinearAxis* m, struct LinearAxisMovement move) {
     m->stepper->direction = move.direction;
+    Stepper_update_direction(m->stepper);
+
     if (m->stepper2 != NULL) {
         m->stepper2->direction = move.direction;
+        Stepper_update_direction(m->stepper2);
     }
 
     m->_current_move = move;
