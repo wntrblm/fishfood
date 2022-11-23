@@ -20,7 +20,7 @@ void gpio_commands_m42_set_pin(const struct lilg_Command cmd) {
     const struct M42PinTableEntry pin_desc = M42_PIN_TABLE[pin_index];
 
     if (LILG_FIELD(cmd, T).set) {
-        switch (LILG_FIELD(cmd, S).real) {
+        switch (LILG_FIELD(cmd, T).real) {
             // Input
             case 0: {
                 gpio_init(pin_desc.pin);
