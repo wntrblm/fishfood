@@ -45,7 +45,7 @@ https://opensource.org/licenses/MIT. */
 
 #define X_STEPPER 0
 #define X_REVERSED 0
-// TODO: This value needs to be empirically validated.
+// Note: this value likely needs tweaking depending on the exact motor you're using.
 #define X_RUN_CURRENT 1.0f
 #define X_HOLD_CURRENT_MULTIPLIER 0.5f
 
@@ -65,7 +65,7 @@ https://opensource.org/licenses/MIT. */
 
 #define Y_STEPPER 1
 #define Y_REVERSED 1
-// TODO: This value needs to be empirically validated.
+// Note: this value likely needs tweaking depending on the exact motor you're using.
 #define Y_RUN_CURRENT 1.0f
 #define Y_HOLD_CURRENT_MULTIPLIER 0.3f
 
@@ -92,11 +92,12 @@ https://opensource.org/licenses/MIT. */
 #ifdef JELLYFISH
 #define HAS_Z_AXIS
 #define Z_STEPPER 1
+#define Z_REVERSED 1
+// Note: this value likely needs tweaking depending on the exact motor you're using.
 // Based on testing with my own Z-Axis motor, 0.7A is a good balance between
 // heat dissipated and hold torque. It's important that the Z axis' hold torque
 // is high enough to not lose steps when the spring-loaded tip of the nozzle
 // is compressed.
-#define Z_REVERSED 1
 #define Z_RUN_CURRENT 0.7f
 #define Z_HOLD_CURRENT_MULTIPLIER 0.8f
 #define Z_DEFAULT_VELOCITY_MM_S 200.0f
