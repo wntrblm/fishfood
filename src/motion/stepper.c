@@ -76,9 +76,10 @@ void Stepper_enable_stallguard(struct Stepper* s, uint8_t threshold) {
 void Stepper_disable_stallguard(struct Stepper* s) { TMC2209_write(s->tmc, TMC2209_SGTHRS, 0); }
 
 bool Stepper_stalled(struct Stepper* s) {
-    // TODO: At some point this might make sense to move to a GPIO IRQ,
-    // but it's annoying since the built-in picosdk only provides *one*
-    // callback for *all* gpio events.
+    // Note: this works well because Fishfood doesn't do stepping using an
+    // interrupt, so there's no need to asynchronously handle this. If,
+    // in the future, this assumption changes this needs to use the GPIO
+    // IRQ.
     return gpio_get(s->pin_diag);
 }
 
