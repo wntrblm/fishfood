@@ -54,7 +54,9 @@ void stallguard_seek(struct LinearAxis* m, float dist_mm) {
 }
 
 void LinearAxis_sensorless_home(struct LinearAxis* m) {
-    // TODO: Home both motors if the axis has two!
+    // TODO/Note: If an axis has two motors, this only monitors StallGuard
+    // on the first of the two motors. At some point it probably makes sense
+    // to monitor both. In practice, this hasn't caused any issues so far.
 
     //
     // 1: Initial seek
