@@ -214,15 +214,17 @@ void LinearAxis_wait_for_move(struct LinearAxis* m) {
         return;
     }
 
-    absolute_time_t report_time = make_timeout_time_ms(1000);
+    // absolute_time_t report_time = make_timeout_time_ms(1000);
 
     while (LinearAxis_is_moving(m)) {
         LinearAxis_timed_step(m);
 
-        if (absolute_time_diff_us(get_absolute_time(), report_time) <= 0) {
-            report_info_ln("moved %li/%li steps", m->_current_move.steps_taken, m->_current_move.total_step_count);
-            report_time = make_timeout_time_ms(1000);
-        }
+        // Note: disabled because it actually causes a slight jerk in the motor movement due
+        // to the amount of time it takes to send this over USB.
+        // if (absolute_time_diff_us(get_absolute_time(), report_time) <= 0) {
+        //     report_info_ln("moved %li/%li steps", m->_current_move.steps_taken, m->_current_move.total_step_count);
+        //     report_time = make_timeout_time_ms(1000);
+        // }
     }
 
     report_info_ln(
