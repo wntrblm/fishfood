@@ -357,7 +357,9 @@ void Machine_set_position(struct Machine* m, const struct lilg_Command cmd) {
 }
 
 void Machine_report_tmc_info(struct Machine* m) {
+    report_set_debug_enabled(true);
     TMC2209_print_all(&(m->tmc[0]));
     TMC2209_print_all(&(m->tmc[1]));
     TMC2209_print_all(&(m->tmc[2]));
+    report_set_debug_enabled(false);
 }
