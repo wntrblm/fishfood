@@ -39,3 +39,10 @@ void Neopixel_set(uint8_t* pixels, size_t n, uint8_t r, uint8_t g, uint8_t b) {
     pixels[offset + 1] = r;
     pixels[offset + 2] = b;
 }
+
+void Neopixel_get(uint8_t* pixels, size_t n, uint8_t* r, uint8_t* g, uint8_t* b) {
+    size_t offset = n * 3;
+    *g = pixels[offset];
+    *r = pixels[offset + 1];
+    *b = pixels[offset + 2];
+}

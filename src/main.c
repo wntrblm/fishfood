@@ -15,6 +15,7 @@ https://opensource.org/licenses/MIT. */
 #include "hardware/gpio.h"
 #include "hardware/i2c.h"
 #include "hardware/uart.h"
+#include "hardware/watchdog.h"
 #include "i2c_commands.h"
 #include "littleg/littleg.h"
 #include "machine.h"
@@ -143,6 +144,13 @@ static void run_g_command(struct lilg_Command cmd) {
             Machine_move(&machine, cmd);
         } break;
 
+        // Millimeter Units
+        // https://marlinfw.org/docs/gcode/G21.html
+        // OpenPnP sends this as part of CONNECT_COMMAND by default.
+        case 21: {
+            // no op
+        } break;
+
         // Home axes
         // https://marlinfw.org/docs/gcode/G28.html
         case 28: {
@@ -181,6 +189,7 @@ static void run_m_command(struct lilg_Command cmd) {
         } break;
 
         // M18 disable steppers.
+        // https://marlinfw.org/docs/gcode/M018.html
         case 18: {
             Machine_disable_steppers(&machine);
         } break;
@@ -196,6 +205,32 @@ static void run_m_command(struct lilg_Command cmd) {
         // https://marlinfw.org/docs/gcode/M043.html
         case 43: {
             gpio_commands_m43_report_pin(cmd);
+        } break;
+
+        // M82 Extruder Absolute Positioning
+        // https://marlinfw.org/docs/gcode/M082.html
+        // OpenPnP defaults to sending this as part of CONNECT_COMMAND
+        case 82: {
+            // no op
+        } break;
+
+        // M112 emergency stop
+        // https://marlinfw.org/docs/gcode/M112.html
+        case 112: {
+            // disable all movement
+            Machine_disable_steppers(&machine);
+
+#ifdef STARFISH
+            // disable outputs for pumps and valves.
+            gpio_put(PIN_PUMP_A, false);
+            gpio_put(PIN_PUMP_B, false);
+            gpio_put(PIN_VALVE_A, false);
+            gpio_put(PIN_VALVE_B, false);
+#endif
+
+            // give visual indicator of shutdown state with LEDs set to RED.
+            Neopixel_set_all(pixels, NUM_PIXELS, 255, 0, 0);
+            Neopixel_write(pixels, NUM_PIXELS);
         } break;
 
         // M114 get current position
@@ -219,21 +254,76 @@ static void run_m_command(struct lilg_Command cmd) {
         // M150 set RGB
         // https://marlinfw.org/docs/gcode/M150.html
         case 150: {
-            int32_t r = LILG_FIELD(cmd, R).real;
-            int32_t g = LILG_FIELD(cmd, G).real;
-            int32_t b = LILG_FIELD(cmd, B).real;
-            Neopixel_set_all(pixels, NUM_PIXELS, r, g, b);
+            uint8_t r = 0;  // off
+            uint8_t g = 0;  // off
+            uint8_t b = 0;  // off
+
+            // Keep current color settings, if a specific index is not provided use first LED.
+            // MUST be processed before other parameters
+            if (LILG_FIELD(cmd, K).set) {
+                size_t index = 0;
+                if (LILG_FIELD(cmd, I).set) {
+                    index = (size_t)LILG_FIELD(cmd, I).real;
+                }
+                Neopixel_get(pixels, index, &r, &g, &b);
+            }
+
+            // Red color component, value 0-255
+            if (LILG_FIELD(cmd, R).set) {
+                r = (uint8_t)LILG_FIELD(cmd, R).real;
+            }
+
+            // Green color component, value 0-255
+            // Marlin docs indicate to use 'U' insead of 'G' so use whichever is set.
+            if (LILG_FIELD(cmd, G).set) {
+                g = (uint8_t)LILG_FIELD(cmd, G).real;
+            } else if (LILG_FIELD(cmd, U).set) {
+                g = (uint8_t)LILG_FIELD(cmd, U).real;
+            }
+
+            // Blue color component, value 0-255
+            if (LILG_FIELD(cmd, B).set) {
+                b = (uint8_t)LILG_FIELD(cmd, B).real;
+            }
+
+            // P parameter controls the brightness, value 0-255
+            if (LILG_FIELD(cmd, P).set) {
+                float intensity = LILG_FIELD(cmd, P).real / 255.0f;
+                r = roundf(r * intensity);
+                g = roundf(g * intensity);
+                b = roundf(b * intensity);
+            }
+
+            // I parameter controls which pixel is being updated, if not present all pixels will be updated
+            if (LILG_FIELD(cmd, I).set) {
+                size_t index = (size_t)LILG_FIELD(cmd, I).real;
+                Neopixel_set(pixels, index, r, g, b);
+                report_result_ln("I:%zu R:%i G:%i B:%i", index, r, g, b);
+            } else {
+                Neopixel_set_all(pixels, NUM_PIXELS, r, g, b);
+                report_result_ln("R:%i G:%i B:%i", r, g, b);
+            }
             Neopixel_write(pixels, NUM_PIXELS);
-            report_result_ln("R:%li G:%li B:%li", r, g, b);
         } break;
 
         // M204 Set Starting Acceleration
         // https://marlinfw.org/docs/gcode/M204.html
         case 204: {
+            float accel = 0;
+            bool set = false;
             if (LILG_FIELD(cmd, T).set) {
-                float accel = lilg_Decimal_to_float(LILG_FIELD(cmd, T));
+                accel = lilg_Decimal_to_float(LILG_FIELD(cmd, T));
+                set = true;
+            }
+            // OpenPnP defaults to using 'S' instead of 'T' in the Issues & Solutions tab.
+            if (LILG_FIELD(cmd, S).set) {
+                accel = lilg_Decimal_to_float(LILG_FIELD(cmd, S));
+                set = true;
+            }
+            if (set) {
                 Machine_set_linear_acceleration(&machine, accel);
             }
+            Machine_report_linear_acceleration(&machine);
         } break;
 
         // M260 I2C Send
@@ -276,6 +366,14 @@ static void run_m_command(struct lilg_Command cmd) {
             // no-op since Fishfood does not reply to G0/G1 until moves are finished.
         } break;
 
+        // M503 Report Settings
+        // https://marlinfw.org/docs/gcode/M503.html
+        case 503: {
+            Machine_report_linear_acceleration(&machine);
+            Machine_report_position(&machine);
+            Machine_report_tmc_info(&machine);
+        } break;
+
         // M906 Set motor current
         // https://marlinfw.org/docs/gcode/M906.html
         case 906: {
@@ -292,6 +390,13 @@ static void run_m_command(struct lilg_Command cmd) {
         // https://marlinfw.org/docs/gcode/M997.html
         case 997: {
             reset_usb_boot(0, 0);
+        } break;
+
+        // M999 reboot
+        // https://marlinfw.org/docs/gcode/M999.html
+        case 999: {
+            // This uses the watchdog to force an immediate reboot.
+            watchdog_reboot(0, 0, 0);
         } break;
 
         default:

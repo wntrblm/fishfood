@@ -38,6 +38,7 @@ void Machine_enable_steppers(struct Machine* m);
 void Machine_disable_steppers(struct Machine* m);
 void Machine_set_linear_velocity(struct Machine* m, float vel_mm_s);
 void Machine_set_linear_acceleration(struct Machine* m, float accel_mm_s2);
+void Machine_report_linear_acceleration(struct Machine* m);
 void Machine_set_motor_current(struct Machine* m, const struct lilg_Command cmd);
 void Machine_set_homing_sensitivity(struct Machine* m, const struct lilg_Command cmd);
 void Machine_home(struct Machine* m, bool x, bool y, bool z);

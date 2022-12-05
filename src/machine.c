@@ -120,8 +120,18 @@ void Machine_set_linear_acceleration(struct Machine* m, float accel_mm_s2) {
 #ifdef HAS_Z_AXIS
     m->z.acceleration_mm_s2 = accel_mm_s2;
 #endif
+}
 
-    report_result_ln("T:%0.2f mm/s^2", (double)accel_mm_s2);
+void Machine_report_linear_acceleration(struct Machine* m) {
+    double accel = 0;
+#ifdef HAS_XY_AXES
+    // Using only X axis as they are configured above to be equal
+    accel = m->x.acceleration_mm_s2;
+#endif
+#ifdef HAS_Z_AXIS
+    accel = m->z.acceleration_mm_s2;
+#endif
+    report_result_ln("T:%0.2f mm/s^2", accel);
 }
 
 void Machine_set_motor_current(struct Machine* m, const struct lilg_Command cmd) {
