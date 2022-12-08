@@ -55,7 +55,7 @@ function(add_board_build board_name)
   pico_add_extra_outputs(${board_name})
 
   target_include_directories(${board_name} PUBLIC ${CMAKE_CURRENT_LIST_DIR}/src)
-  target_link_libraries(${board_name} pico_stdlib hardware_pio hardware_dma hardware_irq hardware_i2c)
+  target_link_libraries(${board_name} pico_stdlib hardware_pio hardware_dma hardware_irq hardware_i2c hardware_pwm)
   target_compile_definitions(${board_name} PUBLIC FISHFOOD_BOARD="${board_name}" ${ARGN})
 endfunction()
 

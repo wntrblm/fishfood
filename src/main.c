@@ -50,6 +50,8 @@ int main() {
     Neopixel_set_all(pixels, NUM_PIXELS, 255, 0, 0);
     Neopixel_write(pixels, NUM_PIXELS);
 
+    gpio_commands_init();
+
     // Wait for USB connection before continuing.
     while (!stdio_usb_connected()) {}
     sleep_ms(1000);
