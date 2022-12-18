@@ -30,11 +30,14 @@ add_compile_definitions(
 )
 
 list(APPEND FISHFOOD_SOURCES
+  src/drivers/graviton_io.c
   src/drivers/neopixel.c
+  src/drivers/rs485.c
   src/drivers/tmc_uart.c
   src/drivers/tmc2209_helper.c
   src/drivers/tmc2209.c
   src/drivers/xgzp6857d.c
+  src/feeders.c
   src/gpio_commands.c
   src/i2c_commands.c
   src/littleg/littleg.c

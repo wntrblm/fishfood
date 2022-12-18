@@ -9,8 +9,10 @@ https://opensource.org/licenses/MIT. */
 #include "config/serial.h"
 #include "drivers/neopixel.h"
 #include "drivers/pca9495a.h"
+#include "drivers/rs485.h"
 #include "drivers/tmc_uart.h"
 #include "drivers/xgzp6857d.h"
+#include "feeders.h"
 #include "gpio_commands.h"
 #include "hardware/gpio.h"
 #include "hardware/i2c.h"
@@ -29,8 +31,11 @@ https://opensource.org/licenses/MIT. */
 #define NUM_PIXELS 8
 static uint8_t pixels[3 * NUM_PIXELS];
 
-static struct I2CCommandsState i2c_commands_state;
 static struct Machine machine;
+static struct I2CCommandsState i2c_commands_state;
+#ifdef HAS_RS485
+static struct FeedersState feeders;
+#endif
 
 static void process_incoming_char(char c);
 static void run_g_command(struct lilg_Command cmd);
@@ -67,6 +72,12 @@ int main() {
     uart_init(TMC_UART_INST, 115200);
     gpio_set_function(PIN_UART_TX, GPIO_FUNC_UART);
     gpio_set_function(PIN_UART_RX, GPIO_FUNC_UART);
+
+#ifdef HAS_RS485
+    report_debug_ln("starting RS485 & feeder communication...");
+    rs485_init();
+    feeders_init(&feeders);
+#endif
 
     report_debug_ln("configuring motion and stepper motors...");
     // TODO: Check for errors!
@@ -367,6 +378,17 @@ static void run_m_command(struct lilg_Command cmd) {
         case 400: {
             // no-op since Fishfood does not reply to G0/G1 until moves are finished.
         } break;
+
+// M485: Send RS-485 message
+// non-standard
+#ifdef HAS_RS485
+        case 485: {
+            feeders_info(&feeders, 1);
+        } break;
+        case 486: {
+            feeders_scan(&feeders);
+        } break;
+#endif
 
         // M503 Report Settings
         // https://marlinfw.org/docs/gcode/M503.html
