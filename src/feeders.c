@@ -15,6 +15,7 @@ https://opensource.org/licenses/MIT. */
 
 #define FIRST_BYTE_TIMEOUT_MS 1
 #define TOTAL_TIMEOUT_MS 40
+#define FEED_WAIT_MS 500lu
 
 /*
     Public functions
@@ -39,11 +40,11 @@ struct FeederInfo* feeders_info(struct FeedersState* s, uint8_t addr) {
     GravitonIODriver_init(&io_driver, FIRST_BYTE_TIMEOUT_MS, TOTAL_TIMEOUT_MS);
 
     struct PhasonRequest req = {
-        .command = PHASON_GET_FEEDER_INFO_REQ,
+        .command = PHASON_FEEDER_INFO_REQ,
     };
-    struct PhasonGetFeederInfoResponse resp;
+    struct PhasonFeederInfoResponse resp;
 
-    if (phason_send_get_feeder_info_request(&io_driver.io, addr, &req, &resp) != GRAVITON_READ_OK) {
+    if (phason_send_feeder_info_request(&io_driver.io, addr, &req, &resp) != GRAVITON_READ_OK) {
         report_error_ln("No feeder found at address %u", addr);
         return NULL;
     }
@@ -71,13 +72,14 @@ struct FeederInfo* feeders_info(struct FeedersState* s, uint8_t addr) {
 }
 
 void feeders_reset(struct FeedersState* s, uint8_t addr) {
+    (void)s;
     struct GravitonIODriver io_driver;
     GravitonIODriver_init(&io_driver, FIRST_BYTE_TIMEOUT_MS, TOTAL_TIMEOUT_MS);
 
     struct PhasonRequest req = {
         .command = PHASON_RESET_FEEDER_REQ,
     };
-    struct PhasonRequest resp;
+    struct PhasonResponse resp;
 
     if (phason_send_reset_feeder_request(&io_driver.io, addr, &req, &resp) != GRAVITON_READ_OK) {
         report_error_ln("No response from feeder at address %u", addr);
@@ -85,4 +87,59 @@ void feeders_reset(struct FeedersState* s, uint8_t addr) {
     }
 }
 
-void feeders_feed(struct FeedersState* s, uint8_t addr, int32_t micrometers) {}
+void feeders_feed(struct FeedersState* s, uint8_t addr, int32_t micrometers) {
+    struct GravitonIODriver io_driver;
+    GravitonIODriver_init(&io_driver, FIRST_BYTE_TIMEOUT_MS, TOTAL_TIMEOUT_MS);
+
+    struct FeederInfo* feeder = &(s->feeders[addr]);
+    feeder->sequence += 1;
+
+    struct PhasonStartFeedRequest req = {
+        .command = PHASON_START_FEED_REQ,
+        .micrometers = micrometers,
+        .sequence = feeder->sequence,
+    };
+    struct PhasonStartFeedResponse resp;
+
+    if (phason_send_start_feed_request(&io_driver.io, addr, (const struct PhasonRequest*)&req, &resp) !=
+        GRAVITON_READ_OK) {
+        report_error_ln("No response from feeder at address %u", addr);
+        return;
+    }
+
+    report_info_ln("Feed started, checking status in %lu ms...", FEED_WAIT_MS);
+    sleep_ms(FEED_WAIT_MS);
+
+    while (true) {
+        struct PhasonFeedStatusRequest status_req = {
+            .command = PHASON_START_FEED_REQ,
+            .sequence = feeder->sequence,
+        };
+        struct PhasonFeedStatusResponse status_resp;
+
+        if (phason_send_feed_status_request(
+                &io_driver.io, addr, (const struct PhasonRequest*)&status_req, &status_resp) != GRAVITON_READ_OK) {
+            report_error_ln("No or invalid response from feeder at address %u", addr);
+            return;
+        }
+
+        switch (status_resp.status) {
+            case PHASON_OK:
+                report_result_ln("Feed complete, actual feed distance: %li", status_resp.actual_micrometers);
+                return;
+            case PHASON_ERROR:
+                report_error_ln("Feed failed, unspecified reason");
+                return;
+            case PHASON_INVALID_REQUEST:
+                report_error_ln("Feed failed, invalid request (bad sequence?)");
+                return;
+            case PHASON_MOTOR_ERROR:
+                report_error_ln("Feed failed, motor error");
+                return;
+            case PHASON_NOT_READY:
+                report_info_ln("Still feeding, checking again in %lu ms...", FEED_WAIT_MS);
+                sleep_ms(FEED_WAIT_MS);
+                break;
+        }
+    }
+}
