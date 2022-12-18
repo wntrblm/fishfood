@@ -129,6 +129,7 @@ void i2c_commands_m261_request(struct I2CCommandsState* s, const struct lilg_Com
 }
 
 void i2c_commands_m262_scan() {
+    report_info_ln("Scanning i2c address space:");
     for (uint8_t addr = 0; addr < 127; addr++) {
         if ((addr & 0x78) == 0 || (addr & 0x78) == 0x78) {
             continue;
