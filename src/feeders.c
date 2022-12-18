@@ -10,6 +10,13 @@ https://opensource.org/licenses/MIT. */
 #include "report.h"
 
 /*
+    Macros and constants
+*/
+
+#define FIRST_BYTE_TIMEOUT_MS 1
+#define TOTAL_TIMEOUT_MS 40
+
+/*
     Public functions
 */
 
@@ -29,7 +36,7 @@ void feeders_scan(struct FeedersState* s) {
 
 struct FeederInfo* feeders_info(struct FeedersState* s, uint8_t addr) {
     struct GravitonIODriver io_driver;
-    GravitonIODriver_init(&io_driver, 1, 40);
+    GravitonIODriver_init(&io_driver, FIRST_BYTE_TIMEOUT_MS, TOTAL_TIMEOUT_MS);
 
     struct PhasonRequest req = {
         .command = PHASON_GET_FEEDER_INFO_REQ,
