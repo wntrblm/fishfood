@@ -69,3 +69,20 @@ struct FeederInfo* feeders_info(struct FeedersState* s, uint8_t addr) {
 
     return &(s->feeders[addr]);
 }
+
+void feeders_reset(struct FeedersState* s, uint8_t addr) {
+    struct GravitonIODriver io_driver;
+    GravitonIODriver_init(&io_driver, FIRST_BYTE_TIMEOUT_MS, TOTAL_TIMEOUT_MS);
+
+    struct PhasonRequest req = {
+        .command = PHASON_RESET_FEEDER_REQ,
+    };
+    struct PhasonRequest resp;
+
+    if (phason_send_reset_feeder_request(&io_driver.io, addr, &req, &resp) != GRAVITON_READ_OK) {
+        report_error_ln("No response from feeder at address %u", addr);
+        return;
+    }
+}
+
+void feeders_feed(struct FeedersState* s, uint8_t addr, int32_t micrometers) {}

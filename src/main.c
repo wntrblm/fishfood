@@ -379,13 +379,33 @@ static void run_m_command(struct lilg_Command cmd) {
             // no-op since Fishfood does not reply to G0/G1 until moves are finished.
         } break;
 
-// M485: Send RS-485 message
-// non-standard
 #ifdef HAS_RS485
+        // M485: Get feeder info
+        // Non-standard
+        // M485 P{feeder number}
         case 485: {
-            feeders_info(&feeders, 1);
+            feeders_info(&feeders, LILG_FIELD(cmd, P).real);
         } break;
+        // M486: Reset feeder
+        // Non-standard
+        // M486 P{feeder number}
         case 486: {
+            feeders_reset(&feeders, LILG_FIELD(cmd, P).real);
+        } break;
+        // M487: Feed
+        // Non-standard
+        // M487 P{feeder number} S{micrometers}
+        case 487: {
+            feeders_feed(&feeders, LILG_FIELD(cmd, P).real, LILG_FIELD(cmd, S).real);
+        } break;
+        // M488: Query feeder by UID
+        // Non-standard
+        // M488 ?
+        case 488: {
+        } break;
+        // M489: Scan for feeders
+        // Non-standard
+        case 489: {
             feeders_scan(&feeders);
         } break;
 #endif
