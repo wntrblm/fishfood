@@ -11,4 +11,8 @@ https://opensource.org/licenses/MIT. */
 
 void rs485_init();
 void rs485_write(const uint8_t* write_buf, size_t write_len);
-void rs485_read(uint8_t* read_buf, size_t read_len);
+void rs485_switch_to_write();
+void rs485_switch_to_read();
+
+#define RS485_READ_EMPTY -1
+int rs485_read();

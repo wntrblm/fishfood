@@ -28,20 +28,26 @@ void rs485_init() {
 }
 
 void rs485_write(const uint8_t* write_buf, size_t write_len) {
-    gpio_put(PIN_RS485_OUT_EN, 1);
-    gpio_put(PIN_RS485_IN_EN, 1);
+    rs485_switch_to_write();
     uart_write_blocking(RS485_UART_INST, write_buf, write_len);
     uart_tx_wait_blocking(RS485_UART_INST);
-    gpio_put(PIN_RS485_OUT_EN, 0);
-    gpio_put(PIN_RS485_IN_EN, 0);
+    rs485_switch_to_read();
 }
 
-void rs485_read(uint8_t* read_buf, size_t read_len) {
-    gpio_put(PIN_RS485_OUT_EN, 0);
-    gpio_put(PIN_RS485_IN_EN, 0);
-    uart_read_blocking(RS485_UART_INST, read_buf, read_len);
-    gpio_put(PIN_RS485_OUT_EN, 0);
+void rs485_switch_to_write() {
+    gpio_put(PIN_RS485_OUT_EN, 1);
     gpio_put(PIN_RS485_IN_EN, 1);
 }
 
+void rs485_switch_to_read() {
+    gpio_put(PIN_RS485_OUT_EN, 0);
+    gpio_put(PIN_RS485_IN_EN, 0);
+}
+
+int rs485_read() {
+    if (!uart_is_readable(RS485_UART_INST)) {
+        return RS485_READ_EMPTY;
+    }
+    return uart_getc(RS485_UART_INST);
+}
 #endif
