@@ -6,7 +6,7 @@ https://opensource.org/licenses/MIT. */
 
 #pragma once
 
-#include "lib/graviton/src/graviton.h"
+#include "graviton/graviton.h"
 #include "pico/time.h"
 
 struct GravitonIODriver {

@@ -7,7 +7,7 @@ https://opensource.org/licenses/MIT. */
 #pragma once
 
 #include "config/serial.h"
-#include "lib/graviton/src/phason.h"
+#include "graviton/phason.h"
 #include "littleg/littleg.h"
 
 struct FeederInfo {
