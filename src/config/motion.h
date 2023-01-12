@@ -94,12 +94,12 @@ https://opensource.org/licenses/MIT. */
 #define Z_STEPPER 1
 #define Z_REVERSED 1
 // Note: this value likely needs tweaking depending on the exact motor you're using.
-// Based on testing with my own Z-Axis motor, 0.7A is a good balance between
+// Based on testing with my own Z-Axis motor, 0.6A is a good balance between
 // heat dissipated and hold torque. It's important that the Z axis' hold torque
 // is high enough to not lose steps when the spring-loaded tip of the nozzle
 // is compressed.
-#define Z_RUN_CURRENT 0.7f
-#define Z_HOLD_CURRENT_MULTIPLIER 0.8f
+#define Z_RUN_CURRENT 0.6f
+#define Z_HOLD_CURRENT_MULTIPLIER 0.75f
 #define Z_DEFAULT_VELOCITY_MM_S 200.0f
 #define Z_DEFAULT_ACCELERATION_MM_S2 1000.0f
 #define Z_STEPS_PER_MM 160.0f
