@@ -27,6 +27,9 @@ void RotationalAxis_start_move(struct RotationalAxis* m, float dest_deg) {
     m->_next_step_at = make_timeout_time_us(m->_step_interval);
 
     float actual_delta_deg = delta_steps * (1.0f / m->steps_per_deg);
+
+    Stepper_update_direction(m->stepper);
+
     report_info_ln(
         "moving %c axis %0.2f deg (%li steps)",
         m->name,
