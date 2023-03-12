@@ -35,7 +35,7 @@ git submodule update --init
 
 ```
 cd <projektfolder>
-git clone https://github.com/wntrblm/fishfood.git
+git clone https://github.com/casartar/fishfood.git
 ```
 
 ### 1.1 Pfad für Pico-sdk exportieren (permanent in .zshrc/.bashrc)
