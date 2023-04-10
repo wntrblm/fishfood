@@ -79,14 +79,14 @@ float LinearAxis_get_position_mm(struct LinearAxis* m);
 
 void LinearAxis_set_position_mm(struct LinearAxis* m, float mm);
 
-inline void LinearAxis_reset_position(struct LinearAxis* m) {
+static inline void LinearAxis_reset_position(struct LinearAxis* m) {
     m->stepper->total_steps = 0;
     m->_current_move = (struct LinearAxisMovement){};
 }
 
-inline bool LinearAxis_is_moving(struct LinearAxis* m) { return m->_current_move.total_step_count != 0; }
+static inline bool LinearAxis_is_moving(struct LinearAxis* m) { return m->_current_move.total_step_count != 0; }
 
-inline void LinearAxis_stop(struct LinearAxis* m) { m->_current_move = (struct LinearAxisMovement){}; }
+static inline void LinearAxis_stop(struct LinearAxis* m) { m->_current_move = (struct LinearAxisMovement){}; }
 
 bool LinearAxis_timed_step(struct LinearAxis* m);
 
