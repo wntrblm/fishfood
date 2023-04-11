@@ -88,6 +88,8 @@ static inline bool LinearAxis_is_moving(struct LinearAxis* m) { return m->_curre
 
 static inline void LinearAxis_stop(struct LinearAxis* m) { m->_current_move = (struct LinearAxisMovement){}; }
 
+void LinearAxis_calculate_step_interval(struct LinearAxis* m);
+
 bool LinearAxis_timed_step(struct LinearAxis* m);
 
 void LinearAxis_direct_step(struct LinearAxis* m);

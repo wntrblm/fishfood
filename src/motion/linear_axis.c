@@ -7,12 +7,6 @@
 #include <stdlib.h>
 
 /*
-    Forward declarations
-*/
-
-void LinearAxis_calculate_step_interval(struct LinearAxis* m);
-
-/*
     Public methods
 */
 
@@ -279,17 +273,18 @@ bool __not_in_flash_func(LinearAxis_timed_step)(struct LinearAxis* m) {
 }
 
 __attribute__((optimize(3))) void __not_in_flash_func(LinearAxis_calculate_step_interval)(struct LinearAxis* m) {
-    // Calculate instantenous velocity at the current
-    // distance traveled.
-    float distance = m->_current_move.steps_taken * (1.0f / m->steps_per_mm);
+    // Calculate instantenous velocity at the current distance traveled.
+
+    // distance mm = steps * 1 / steps/mm
+    float distance = m->_current_move.steps_taken / m->steps_per_mm;
     float inst_velocity;
 
     // Acceleration phase
-    if (m->_current_move.steps_taken < m->_current_move.accel_step_count) {
+    if (m->_current_move.steps_taken <= m->_current_move.accel_step_count) {
         inst_velocity = sqrtf(2.0f * distance * m->acceleration_mm_s2);
     }
     // Coast phase
-    else if (m->_current_move.steps_taken < m->_current_move.accel_step_count + m->_current_move.coast_step_count) {
+    else if (m->_current_move.steps_taken <= m->_current_move.accel_step_count + m->_current_move.coast_step_count) {
         inst_velocity = m->velocity_mm_s;
     }
     // Deceleration phase
