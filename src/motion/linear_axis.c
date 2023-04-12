@@ -172,7 +172,7 @@ struct LinearAxisMovement LinearAxis_calculate_move(struct LinearAxis* m, float 
         coast_step_count = 0;
     }
 
-    return (struct LinearAxisMovement){
+    struct LinearAxisMovement movement = {
         .direction = dir,
         .accel_step_count = accel_step_count,
         .decel_step_count = decel_step_count,
@@ -180,6 +180,15 @@ struct LinearAxisMovement LinearAxis_calculate_move(struct LinearAxis* m, float 
         .total_step_count = total_step_count,
         .steps_taken = 0,
     };
+
+    // Generate the acceleration look-up table.
+    for (size_t i = 0; i < 256; i++) {
+        int32_t steps = (float)(i) / 255.0f * (float)(accel_step_count);
+        uint16_t step_time = (uint16_t)(LinearAxisMovement_calculate_lut_entry(m, steps));
+        movement.lut[i] = step_time;
+    }
+
+    return movement;
 }
 
 void LinearAxis_start_move(struct LinearAxis* m, struct LinearAxisMovement move) {
@@ -266,43 +275,61 @@ bool __not_in_flash_func(LinearAxis_timed_step)(struct LinearAxis* m) {
     }
 
     LinearAxis_direct_step(m);
-    LinearAxis_calculate_step_interval(m);
+    LinearAxis_lookup_step_interval(m);
     m->_next_step_at = make_timeout_time_us(m->_step_interval);
 
     return true;
 }
 
-__attribute__((optimize(3))) void __not_in_flash_func(LinearAxis_calculate_step_interval)(struct LinearAxis* m) {
-    // Calculate instantenous velocity at the current distance traveled.
-
-    // distance mm = steps * 1 / steps/mm
-    float distance = m->_current_move.steps_taken / m->steps_per_mm;
-    float inst_velocity;
+__attribute__((optimize(3))) void __not_in_flash_func(LinearAxis_lookup_step_interval)(struct LinearAxis* m) {
+    size_t lut_index;
 
     // Acceleration phase
     if (m->_current_move.steps_taken <= m->_current_move.accel_step_count) {
-        inst_velocity = sqrtf(2.0f * distance * m->acceleration_mm_s2);
+        lut_index = m->_current_move.steps_taken * 255 / m->_current_move.accel_step_count;
     }
     // Coast phase
     else if (m->_current_move.steps_taken <= m->_current_move.accel_step_count + m->_current_move.coast_step_count) {
-        inst_velocity = m->velocity_mm_s;
+        lut_index = 255;
     }
     // Deceleration phase
     else {
-        float total_distance = m->_current_move.total_step_count * (1.0f / m->steps_per_mm);
-        inst_velocity = sqrtf(2.0f * (total_distance - distance) * m->acceleration_mm_s2);
+        int32_t steps =
+            m->_current_move.steps_taken - (m->_current_move.accel_step_count + m->_current_move.coast_step_count);
+        lut_index = 255 - (steps * 255 / m->_current_move.accel_step_count);
     }
+
+    int64_t step_time_us = m->_current_move.lut[MIN(lut_index, 255)];
+    step_time_us = MIN(step_time_us, 5000);
+
+    m->_step_interval = step_time_us;
+}
+
+__attribute__((optimize(3))) uint32_t
+__not_in_flash_func(LinearAxisMovement_calculate_lut_entry)(struct LinearAxis* a, uint32_t steps) {
+    // Calculate instantenous velocity at the current distance traveled.
+
+    // At 0 steps velocity is technically zero, so just cheat and pretend we're
+    // 1 step in.
+    if (steps == 0) {
+        steps = 1;
+    }
+
+    // distance mm = steps * 1 / steps/mm
+    float distance = steps / a->steps_per_mm;
+    float inst_velocity = sqrtf(2.0f * distance * a->acceleration_mm_s2);
 
     // Calculate the timer period from the velocity
     float s_per_step;
     if (inst_velocity > 0.0f) {
-        float steps_per_s = inst_velocity / (1.0f / m->steps_per_mm);
+        float steps_per_s = inst_velocity / (1.0f / a->steps_per_mm);
         s_per_step = 1.0f / steps_per_s;
     } else {
-        s_per_step = 0.001f;
+        s_per_step = 0.005f;
     }
 
-    int64_t step_time_us = (int64_t)(s_per_step * 1000000.0f);
-    step_time_us = step_time_us > 5000 ? 5000 : step_time_us;
-    m->_step_interval = step_time_us;
+    uint64_t step_time_us = (uint64_t)(s_per_step * 1000000.0f);
+    step_time_us = MIN(step_time_us, 5000);
+
+    return (uint32_t)(step_time_us);
 }

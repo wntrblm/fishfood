@@ -85,11 +85,13 @@ bool Stepper_stalled(struct Stepper* s) {
 
 void Stepper_update_direction(struct Stepper* s) {
     gpio_put(s->pin_dir, s->direction > 0 ? !s->reversed : s->reversed);
+    // TODO: Use busy_wait_at_least_cycles
     sleep_us(STEP_PULSE_DELAY);
 }
 
 void Stepper_step(struct Stepper* s) {
     gpio_put(s->pin_step, true);
+    // TODO: Use busy_wait_at_least_cycles
     sleep_us(STEP_PULSE_DELAY);
     gpio_put(s->pin_step, false);
 
@@ -99,6 +101,7 @@ void Stepper_step(struct Stepper* s) {
 void Stepper_step_two(struct Stepper* s1, struct Stepper* s2) {
     gpio_put(s1->pin_step, true);
     gpio_put(s2->pin_step, true);
+    // TODO: Use busy_wait_at_least_cycles
     sleep_us(STEP_PULSE_DELAY);
     gpio_put(s1->pin_step, false);
     gpio_put(s2->pin_step, false);

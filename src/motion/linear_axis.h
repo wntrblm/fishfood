@@ -19,6 +19,8 @@ struct LinearAxisMovement {
     int32_t total_step_count;
     // Number of steps taken so far.
     int32_t steps_taken;
+    // acceleration look-up table
+    uint16_t lut[256];
 };
 
 struct LinearAxis {
@@ -88,8 +90,10 @@ static inline bool LinearAxis_is_moving(struct LinearAxis* m) { return m->_curre
 
 static inline void LinearAxis_stop(struct LinearAxis* m) { m->_current_move = (struct LinearAxisMovement){}; }
 
-void LinearAxis_calculate_step_interval(struct LinearAxis* m);
-
 bool LinearAxis_timed_step(struct LinearAxis* m);
 
 void LinearAxis_direct_step(struct LinearAxis* m);
+
+void LinearAxis_lookup_step_interval(struct LinearAxis* m);
+
+uint32_t LinearAxisMovement_calculate_lut_entry(struct LinearAxis* a, uint32_t steps);

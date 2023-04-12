@@ -43,6 +43,7 @@ fn make_axis(stepper: *c.Stepper) c.LinearAxis {
             .coast_step_count = 0,
             .total_step_count = 0,
             .steps_taken = 0,
+            .lut = [_]u16{0} ** 256,
         },
     };
 }
@@ -96,7 +97,7 @@ test "LinearAxis: step interval" {
     axis._current_move = move;
     axis._current_move.steps_taken = 8000;
 
-    c.LinearAxis_calculate_step_interval(&axis);
+    c.LinearAxis_lookup_step_interval(&axis);
 
     // working backwards:
     // (1 / ((62 microseconds) / step)) × (1 / (160 steps/millimeter)) ≈ 100.8064516 mm/s
@@ -106,9 +107,38 @@ test "LinearAxis: step interval" {
     // axis should be around 3/4 the final velocity.
     axis._current_move.steps_taken = 400;
 
-    c.LinearAxis_calculate_step_interval(&axis);
+    c.LinearAxis_lookup_step_interval(&axis);
 
     // working backwards
     // (1 / ((88 microseconds) / step)) × (1 / (160 steps/millimeter)) ≈ 71.02272727 mm/s
     try testing.expectEqual(axis._step_interval, 88);
+    try testing.expectEqual(axis._step_interval, axis._current_move.lut[127]);
+
+    // Deceleration case: halfway through the deceleration steps, so the velocity
+    // should be the same as above.
+    axis._current_move.steps_taken = 800 + 14400 + 400;
+    c.LinearAxis_lookup_step_interval(&axis);
+    try testing.expectEqual(axis._step_interval, 88);
+
+    // Finally, last step case - the velocity should be as low as it'll get
+    axis._current_move.steps_taken = 800 + 14400 + 799;
+    c.LinearAxis_lookup_step_interval(&axis);
+
+    try testing.expectEqual(axis._step_interval, 1020);
+    try testing.expectEqual(axis._step_interval, axis._current_move.lut[1]);
+}
+
+test "LinearAxis: move look up table" {
+    var stepper = make_stepper();
+    var axis = make_axis(&stepper);
+    var move = c.LinearAxis_calculate_move(&axis, 100.0);
+
+    // Each entry in the lut table should be less than or equal to the entry
+    // before, since the lut table stores values corresponding to increasing
+    // velocity.
+    var last = move.lut[0];
+    for (move.lut) |current| {
+        try testing.expect(current <= last);
+        last = current;
+    }
 }
