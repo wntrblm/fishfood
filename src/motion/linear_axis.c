@@ -182,11 +182,17 @@ struct LinearAxisMovement LinearAxis_calculate_move(struct LinearAxis* m, float 
     };
 
     // Generate the acceleration look-up table.
-    for (size_t i = 0; i < 256; i++) {
-        int32_t steps = (float)(i) / 255.0f * (float)(accel_step_count);
+    for (size_t i = 0; i < LINEAR_AXIS_LUT_COUNT; i++) {
+        int32_t steps = (float)(i) / (float)(LINEAR_AXIS_LUT_COUNT - 1) * (float)(accel_step_count);
         uint16_t step_time = (uint16_t)(LinearAxisMovement_calculate_lut_entry(m, steps));
         movement.lut[i] = step_time;
     }
+
+    report_info_ln(
+        "Calculated move: accel: %li steps, coast: %li steps, decel: %li steps.",
+        movement.accel_step_count,
+        movement.coast_step_count,
+        movement.decel_step_count);
 
     return movement;
 }
@@ -286,20 +292,21 @@ __attribute__((optimize(3))) void __not_in_flash_func(LinearAxis_lookup_step_int
 
     // Acceleration phase
     if (m->_current_move.steps_taken <= m->_current_move.accel_step_count) {
-        lut_index = m->_current_move.steps_taken * 255 / m->_current_move.accel_step_count;
+        lut_index = m->_current_move.steps_taken * (LINEAR_AXIS_LUT_COUNT - 1) / m->_current_move.accel_step_count;
     }
     // Coast phase
     else if (m->_current_move.steps_taken <= m->_current_move.accel_step_count + m->_current_move.coast_step_count) {
-        lut_index = 255;
+        lut_index = (LINEAR_AXIS_LUT_COUNT - 1);
     }
     // Deceleration phase
     else {
         int32_t steps =
             m->_current_move.steps_taken - (m->_current_move.accel_step_count + m->_current_move.coast_step_count);
-        lut_index = 255 - (steps * 255 / m->_current_move.accel_step_count);
+        lut_index =
+            (LINEAR_AXIS_LUT_COUNT - 1) - (steps * (LINEAR_AXIS_LUT_COUNT - 1) / m->_current_move.accel_step_count);
     }
 
-    int64_t step_time_us = m->_current_move.lut[MIN(lut_index, 255)];
+    int64_t step_time_us = m->_current_move.lut[MIN(lut_index, LINEAR_AXIS_LUT_COUNT - 1)];
     step_time_us = MIN(step_time_us, 5000);
 
     m->_step_interval = step_time_us;

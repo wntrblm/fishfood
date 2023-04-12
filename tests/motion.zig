@@ -43,7 +43,7 @@ fn make_axis(stepper: *c.Stepper) c.LinearAxis {
             .coast_step_count = 0,
             .total_step_count = 0,
             .steps_taken = 0,
-            .lut = [_]u16{0} ** 256,
+            .lut = [_]u16{0} ** c.LINEAR_AXIS_LUT_COUNT,
         },
     };
 }
@@ -112,7 +112,7 @@ test "LinearAxis: step interval" {
     // working backwards
     // (1 / ((88 microseconds) / step)) × (1 / (160 steps/millimeter)) ≈ 71.02272727 mm/s
     try testing.expectEqual(axis._step_interval, 88);
-    try testing.expectEqual(axis._step_interval, axis._current_move.lut[127]);
+    try testing.expectEqual(axis._step_interval, axis._current_move.lut[c.LINEAR_AXIS_LUT_COUNT >> 1]);
 
     // Deceleration case: halfway through the deceleration steps, so the velocity
     // should be the same as above.
@@ -124,7 +124,7 @@ test "LinearAxis: step interval" {
     axis._current_move.steps_taken = 800 + 14400 + 799;
     c.LinearAxis_lookup_step_interval(&axis);
 
-    try testing.expectEqual(axis._step_interval, 1020);
+    try testing.expectEqual(axis._step_interval, 1767);
     try testing.expectEqual(axis._step_interval, axis._current_move.lut[1]);
 }
 

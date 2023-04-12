@@ -9,11 +9,11 @@
 // - T(SH) - STEP minimum high time = 100 ns
 // - T(SL) - STEP minimum low time = 100 ns
 // We add a little bit just to be on the safe side.
-#define TIMING_T_DSU_NS 50
-#define TIMING_T_SH_NS 150
-#define TIMING_T_SL_NS 150
-// Running at 133 MHz, each clock cycle is ~7.5 ns.
-#define TIMING_CYCLE_NS 7.5
+#define TIMING_T_DSU_NS 80
+#define TIMING_T_SH_NS 200
+#define TIMING_T_SL_NS 200
+// Running at 125 MHz, each clock cycle is 8 ns.
+#define TIMING_CYCLE_NS 8
 #define NS_TO_CYCLES(n) ((uint32_t)(n / TIMING_CYCLE_NS))
 
 // Calculate delays based on timing information above
