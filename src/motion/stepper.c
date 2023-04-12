@@ -4,7 +4,22 @@
 #include "pico/time.h"
 #include "report.h"
 
-#define STEP_PULSE_DELAY 1
+// TMC2209 Datasheet section 13.1 notes timing requirements:
+// - T(DSU) - DIR to STEP setup time = 20 ns
+// - T(SH) - STEP minimum high time = 100 ns
+// - T(SL) - STEP minimum low time = 100 ns
+// We add a little bit just to be on the safe side.
+#define TIMING_T_DSU_NS 50
+#define TIMING_T_SH_NS 150
+#define TIMING_T_SL_NS 150
+// Running at 133 MHz, each clock cycle is ~7.5 ns.
+#define TIMING_CYCLE_NS 7.5
+#define NS_TO_CYCLES(n) ((uint32_t)(n / TIMING_CYCLE_NS))
+
+// Calculate delays based on timing information above
+#define DIR_SETUP_DELAY_CYCLES NS_TO_CYCLES(TIMING_T_DSU_NS)
+#define STEP_HIGH_DELAY_CYCLES NS_TO_CYCLES(TIMING_T_SH_NS)
+#define STEP_LOW_DELAY_CYCLES NS_TO_CYCLES(TIMING_T_SL_NS)
 
 /*
     Public functions
@@ -85,15 +100,14 @@ bool Stepper_stalled(struct Stepper* s) {
 
 void Stepper_update_direction(struct Stepper* s) {
     gpio_put(s->pin_dir, s->direction > 0 ? !s->reversed : s->reversed);
-    // TODO: Use busy_wait_at_least_cycles
-    sleep_us(STEP_PULSE_DELAY);
+    busy_wait_at_least_cycles(DIR_SETUP_DELAY_CYCLES);
 }
 
 void Stepper_step(struct Stepper* s) {
     gpio_put(s->pin_step, true);
-    // TODO: Use busy_wait_at_least_cycles
-    sleep_us(STEP_PULSE_DELAY);
+    busy_wait_at_least_cycles(STEP_HIGH_DELAY_CYCLES);
     gpio_put(s->pin_step, false);
+    busy_wait_at_least_cycles(STEP_LOW_DELAY_CYCLES);
 
     s->total_steps += s->direction;
 }
@@ -101,10 +115,11 @@ void Stepper_step(struct Stepper* s) {
 void Stepper_step_two(struct Stepper* s1, struct Stepper* s2) {
     gpio_put(s1->pin_step, true);
     gpio_put(s2->pin_step, true);
-    // TODO: Use busy_wait_at_least_cycles
-    sleep_us(STEP_PULSE_DELAY);
+
+    busy_wait_at_least_cycles(STEP_HIGH_DELAY_CYCLES);
     gpio_put(s1->pin_step, false);
     gpio_put(s2->pin_step, false);
+    busy_wait_at_least_cycles(STEP_LOW_DELAY_CYCLES);
 
     s1->total_steps += s1->direction;
     s2->total_steps += s2->direction;
