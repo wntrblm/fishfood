@@ -10,8 +10,8 @@
 // - T(SL) - STEP minimum low time = 100 ns
 // We add a little bit just to be on the safe side.
 #define TIMING_T_DSU_NS 80
-#define TIMING_T_SH_NS 200
-#define TIMING_T_SL_NS 200
+#define TIMING_T_SH_NS 150
+#define TIMING_T_SL_NS 150
 // Running at 125 MHz, each clock cycle is 8 ns.
 #define TIMING_CYCLE_NS 8
 #define NS_TO_CYCLES(n) ((uint32_t)(n / TIMING_CYCLE_NS))
@@ -89,6 +89,23 @@ void Stepper_enable_stallguard(struct Stepper* s, uint8_t threshold) {
 }
 
 void Stepper_disable_stallguard(struct Stepper* s) { TMC2209_write(s->tmc, TMC2209_SGTHRS, 0); }
+
+static inline void set_stealthchop(struct Stepper* s, bool enabled) {
+    uint32_t gconf;
+    enum TMC2209_read_result result = TMC2209_read(s->tmc, TMC2209_GCONF, &gconf);
+
+    if (result != TMC_READ_OK) {
+        report_error_ln("Unable to read GCONF!");
+        return;
+    }
+
+    TMC_SET_FIELD(gconf, TMC2209_GCONF_EN_SPREADCYCLE, !enabled);
+
+    TMC2209_write(s->tmc, TMC2209_GCONF, gconf);
+}
+
+void Stepper_enable_stealthchop(struct Stepper* s) { set_stealthchop(s, true); }
+void Stepper_disable_stealthchop(struct Stepper* s) { set_stealthchop(s, false); }
 
 bool Stepper_stalled(struct Stepper* s) {
     // Note: this works well because Fishfood doesn't do stepping using an

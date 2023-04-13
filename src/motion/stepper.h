@@ -35,6 +35,8 @@ bool Stepper_setup(struct Stepper* s);
 void Stepper_disable(struct Stepper* s);
 void Stepper_enable(struct Stepper* s);
 void Stepper_set_current(struct Stepper* s, float run_current, float hold_current);
+void Stepper_enable_stealthchop(struct Stepper* s);
+void Stepper_disable_stealthchop(struct Stepper* s);
 void Stepper_enable_stallguard(struct Stepper* s, uint8_t threshold);
 void Stepper_disable_stallguard(struct Stepper* s);
 bool Stepper_stalled(struct Stepper* s);
