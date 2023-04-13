@@ -40,8 +40,8 @@ bool TMC2209_write_config(struct TMC2209* tmc, uint32_t enable_pin) {
     TMC_SET_FIELD(gconf, TMC2209_GCONF_PDN_DISABLE, 1);
     // Don't use the MS pins for UART address, not microstepping setting.
     TMC_SET_FIELD(gconf, TMC2209_GCONF_MSTEP_REG_SELECT, 1);
-    // Use stealthChop
-    TMC_SET_FIELD(gconf, TMC2209_GCONF_EN_SPREADCYCLE, 0);
+    // Don't use stealthChop by default, as it messes up high speed movement
+    TMC_SET_FIELD(gconf, TMC2209_GCONF_EN_SPREADCYCLE, 1);
     // Use external RDSon sense resistors
     TMC_SET_FIELD(gconf, TMC2209_GCONF_INTERNAL_RSENSE, TMC_INTERNAL_RSENSE);
     // Use filtering on the step pin
