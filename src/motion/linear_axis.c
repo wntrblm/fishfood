@@ -2,6 +2,7 @@
 #include "config/motion.h"
 #include "hardware/gpio.h"
 #include "hardware/platform_defs.h"
+#include "hardware/sync.h"
 #include "report.h"
 #include <math.h>
 #include <stdlib.h>
@@ -23,6 +24,7 @@ void LinearAxis_init(struct LinearAxis* m, char name, struct Stepper* stepper) {
 }
 
 void stallguard_seek(struct LinearAxis* m, float dist_mm) {
+    Stepper_enable_stealthchop(m->stepper);
     Stepper_disable_stallguard(m->stepper);
 
     LinearAxis_start_move(m, LinearAxis_calculate_move(m, dist_mm));
@@ -45,6 +47,7 @@ void stallguard_seek(struct LinearAxis* m, float dist_mm) {
     LinearAxis_stop(m);
     LinearAxis_reset_position(m);
     Stepper_disable_stallguard(m->stepper);
+    Stepper_disable_stealthchop(m->stepper);
 }
 
 void LinearAxis_sensorless_home(struct LinearAxis* m) {
