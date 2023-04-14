@@ -49,8 +49,8 @@ https://opensource.org/licenses/MIT. */
 #define X_RUN_CURRENT 1.0f
 #define X_HOLD_CURRENT_MULTIPLIER 0.5f
 
-#define X_DEFAULT_VELOCITY_MM_S 300.0f
-#define X_DEFAULT_ACCELERATION_MM_S2 1000.0f
+#define X_DEFAULT_VELOCITY_MM_S 600.0f
+#define X_DEFAULT_ACCELERATION_MM_S2 2000.0f
 // Note: steps/mm is dependent on the microsteps, if you change those this
 // will also need to be updated.
 #define X_STEPS_PER_MM 160.0f
