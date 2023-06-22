@@ -62,6 +62,8 @@ int main() {
     while (!stdio_usb_connected()) {}
     sleep_ms(1000);
 
+    report_info_ln("Hello, I'm %s", USBD_PRODUCT);
+
     report_debug_ln("starting I2C peripheral bus...");
     i2c_init(PERIPH_I2C_INST, PERIPH_I2C_SPEED);
     gpio_set_function(PIN_I2C_SDA, GPIO_FUNC_I2C);
